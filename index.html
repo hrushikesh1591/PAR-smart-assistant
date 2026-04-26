@@ -82,8 +82,8 @@
     .par-actions-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
     @media(max-width:700px){.grid,.grid-3,.dyn-grid{grid-column:1fr;grid-template-columns:1fr;}.hero h1{font-size:20px;}.container{padding:12px;}.dot-label{font-size:9px;}.key-card{flex-direction:column;}}
   </style>
-  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
-  <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
 <style id="printCSS">
 @media print {
@@ -106,7 +106,8 @@
 
 <div class="hero">
   <h1>PAR Smart Assistant</h1>
-  <p>Gujarat Health &amp; Family Welfare Department — Karmayogi Gujarat PAR Generator · v6.1</p>
+  <p>Gujarat Health &amp; Family Welfare Department — Karmayogi Gujarat PAR Generator · v6.2</p>
+  <p style="margin:10px 0 0;font-size:11px;color:rgba(255,255,255,0.6);">Developed by <strong style="color:rgba(255,255,255,0.9);">Dr. Hrushikesh Gosai MDS OMFS</strong></p>
 </div>
 
 <div class="progress-wrap">
@@ -122,15 +123,7 @@
 
 <div class="container">
 
-  <!-- STATUS BAR -->
-  <div class="key-card" id="keyCard" style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);">
-    <div class="key-icon">🚀</div>
-    <div class="key-body">
-      <h3>PAR Smart Assistant — Ready</h3>
-      <p>Powered by Gemini 2.5 Flash · Secure backend · No API key needed from you · Fill the form below and generate your PAR instantly.</p>
-      <div class="key-status key-ok" id="keyStatus">✅ Connected to secure server — ready to generate!</div>
-    </div>
-  </div>
+
 
   <form id="parForm" novalidate>
 
@@ -704,196 +697,267 @@ updateProgress();
 // DOCX GENERATOR — mirrors Karmayogi PAR form layout
 // ═══════════════════════════════════════════════════════════
 async function downloadDOCX() {
+  // Safety check
+  if (typeof docx === 'undefined') {
+    alert('DOCX library not loaded yet. Please wait a moment and try again.');
+    return;
+  }
+
   const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-          WidthType, BorderStyle, AlignmentType, HeadingLevel, ShadingType } = docx;
+          WidthType, BorderStyle, AlignmentType, ShadingType, VerticalAlign } = docx;
 
-  const employeeName = document.getElementById('employeeName').value || 'Employee';
-  const designation  = document.getElementById('designationText').value || '';
-  const facility     = document.getElementById('facilityInput')?.value ||
-                       document.getElementById('instituteSelect')?.value || '';
-  const period       = (document.querySelector('#parPeriodSelect option:checked') || {}).textContent || '';
+  const employeeName  = document.getElementById('employeeName').value || 'Employee';
+  const designation   = document.getElementById('designationText').value || document.getElementById('desigSelect').value || '';
+  const speciality    = document.getElementById('specSelect').value || '';
+  const facilityEl    = document.getElementById('facilityInput') || document.getElementById('instituteSelect') || document.getElementById('nursingInstSelect');
+  const facility      = facilityEl ? facilityEl.value : '';
+  const periodEl      = document.querySelector('#parPeriodSelect option:checked');
+  const period        = periodEl ? periodEl.textContent : '';
 
-  function getSectionText(key) {
+  function getSec(key) {
     const el = document.getElementById('txt_' + key);
     return el ? el.innerText.trim() : '';
   }
 
-  // Helper: section heading paragraph
-  function sectionHeading(text) {
+  const TEAL    = '0f766e';
+  const LTEAL   = 'd1fae5';
+  const DKTEAL  = '134e4a';
+  const GRAY    = '6b7280';
+  const BLACK   = '1f2937';
+  const WHITE   = 'FFFFFF';
+
+  // ── Heading paragraph ──
+  function secHead(text) {
     return new Paragraph({
-      children: [new TextRun({ text, bold: true, size: 26, color: '0f766e', font: 'Arial' })],
-      spacing: { before: 320, after: 120 },
-      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '0f766e' } }
+      children: [new TextRun({ text, bold: true, size: 26, color: WHITE, font: 'Arial' })],
+      spacing: { before: 360, after: 0 },
+      shading: { type: ShadingType.SOLID, color: TEAL },
+      indent: { left: 120, right: 120 }
     });
   }
 
-  // Helper: body paragraph
-  function bodyPara(text) {
+  // ── Body paragraph ──
+  function bodyP(text, opts={}) {
     return new Paragraph({
-      children: [new TextRun({ text: text || '—', size: 22, font: 'Arial' })],
-      spacing: { before: 80, after: 80 },
-      alignment: AlignmentType.JUSTIFIED
+      children: [new TextRun({ text: text||'—', size: 22, font: 'Arial', color: BLACK, ...opts })],
+      spacing: { before: 100, after: 100 },
+      alignment: AlignmentType.JUSTIFIED,
+      indent: { left: 120, right: 120 }
     });
   }
 
-  // Helper: label-value row
-  function labelValue(label, value) {
-    return new Paragraph({
-      children: [
-        new TextRun({ text: label + ': ', bold: true, size: 22, font: 'Arial' }),
-        new TextRun({ text: value || '—', size: 22, font: 'Arial' })
-      ],
-      spacing: { before: 60, after: 60 }
-    });
-  }
-
-  // Parse Section 2 table text into rows
-  function parseTableRows(rawText) {
-    const lines = rawText.split('\n').filter(l => l.includes('|'));
-    return lines.map(line => {
-      const cells = line.split('|').map(c => c.trim()).filter(c => c.length > 0);
-      return cells;
-    });
-  }
-
-  function makeTable(rows) {
-    if (!rows || rows.length === 0) return bodyPara(getSectionText('s2'));
+  // ── Simple 2-col label-value table ──
+  function infoTable(rows) {
     return new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: rows.map((cells, ri) =>
+      borders: {
+        top:    { style: BorderStyle.SINGLE, size: 4, color: TEAL },
+        bottom: { style: BorderStyle.SINGLE, size: 4, color: TEAL },
+        left:   { style: BorderStyle.SINGLE, size: 4, color: TEAL },
+        right:  { style: BorderStyle.SINGLE, size: 4, color: TEAL },
+        insideH:{ style: BorderStyle.SINGLE, size: 2, color: 'cccccc' },
+        insideV:{ style: BorderStyle.SINGLE, size: 2, color: 'cccccc' }
+      },
+      rows: rows.map(([label, value]) =>
+        new TableRow({ children: [
+          new TableCell({
+            width: { size: 25, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.SOLID, color: LTEAL },
+            verticalAlign: VerticalAlign.CENTER,
+            children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 22, font: 'Arial', color: DKTEAL })], spacing: { before: 80, after: 80 }, indent: { left: 80 } })]
+          }),
+          new TableCell({
+            width: { size: 75, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.CENTER,
+            children: [new Paragraph({ children: [new TextRun({ text: value||'—', size: 22, font: 'Arial', color: BLACK })], spacing: { before: 80, after: 80 }, indent: { left: 80 } })]
+          })
+        ]})
+      )
+    });
+  }
+
+  // ── Beautiful Section 2 achievement table ──
+  function achievementTable(rawText) {
+    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.includes('|') && !l.match(/^[|\-\s]+$/));
+    if (lines.length < 2) return bodyP(rawText);
+
+    const allRows = lines.map(l => l.split('|').map(c => c.trim()).filter(c => c.length > 0));
+
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top:    { style: BorderStyle.SINGLE, size: 4, color: TEAL },
+        bottom: { style: BorderStyle.SINGLE, size: 4, color: TEAL },
+        left:   { style: BorderStyle.SINGLE, size: 4, color: TEAL },
+        right:  { style: BorderStyle.SINGLE, size: 4, color: TEAL },
+        insideH:{ style: BorderStyle.SINGLE, size: 2, color: 'cccccc' },
+        insideV:{ style: BorderStyle.SINGLE, size: 2, color: 'cccccc' }
+      },
+      rows: allRows.map((cells, ri) =>
         new TableRow({
-          children: cells.map(cellText =>
-            new TableCell({
+          tableHeader: ri === 0,
+          children: cells.map((cellText, ci) => {
+            const isHeader = ri === 0;
+            const colW = ci === 0 ? 50 : 25;
+            return new TableCell({
+              width: { size: colW, type: WidthType.PERCENTAGE },
+              shading: isHeader
+                ? { type: ShadingType.SOLID, color: TEAL }
+                : (ri % 2 === 0 ? { type: ShadingType.SOLID, color: 'f0fdf4' } : undefined),
+              verticalAlign: VerticalAlign.CENTER,
               children: [new Paragraph({
                 children: [new TextRun({
                   text: cellText,
-                  bold: ri === 0,
-                  size: 20,
-                  font: 'Arial'
+                  bold: isHeader,
+                  size: isHeader ? 22 : 21,
+                  font: 'Arial',
+                  color: isHeader ? WHITE : BLACK
                 })],
-                spacing: { before: 60, after: 60 }
-              })],
-              shading: ri === 0 ? { type: ShadingType.SOLID, color: 'd1fae5' } : undefined
-            })
-          )
+                spacing: { before: 80, after: 80 },
+                alignment: isHeader ? AlignmentType.CENTER : AlignmentType.LEFT,
+                indent: { left: 60 }
+              })]
+            });
+          })
         })
       )
     });
   }
 
-  // Title block
-  const titleParagraphs = [
-    new Paragraph({
-      children: [new TextRun({ text: 'PERFORMANCE APPRAISAL REPORT', bold: true, size: 32, font: 'Arial', color: '0f766e' })],
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 0, after: 120 }
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: 'Gujarat Health & Family Welfare Department', size: 24, font: 'Arial', color: '374151' })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 80 }
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: 'Karmayogi Gujarat — Annual PAR', size: 22, font: 'Arial', color: '6b7280', italics: true })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 240 }
-    }),
-    // Employee details table
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({ children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Name', bold: true, font: 'Arial', size: 22 })] })], shading: { type: ShadingType.SOLID, color: 'f0fdf4' } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: employeeName, font: 'Arial', size: 22 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Designation', bold: true, font: 'Arial', size: 22 })] })], shading: { type: ShadingType.SOLID, color: 'f0fdf4' } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: designation, font: 'Arial', size: 22 })] })] })
-        ]}),
-        new TableRow({ children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Facility / Institute', bold: true, font: 'Arial', size: 22 })] })], shading: { type: ShadingType.SOLID, color: 'f0fdf4' } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: facility, font: 'Arial', size: 22 })] })], columnSpan: 3 })
-        ]}),
-        new TableRow({ children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Review Period', bold: true, font: 'Arial', size: 22 })] })], shading: { type: ShadingType.SOLID, color: 'f0fdf4' } }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: period, font: 'Arial', size: 22 })] })], columnSpan: 3 })
-        ]})
-      ]
-    }),
-    new Paragraph({ spacing: { after: 240 } })
-  ];
-
-  // Section 2 table
-  const s2raw = getSectionText('s2');
-  const tableRows = parseTableRows(s2raw);
-  const s2Content = tableRows.length > 1 ? makeTable(tableRows) : bodyPara(s2raw);
-
-  // Section 5 — skill list
-  const s5raw = getSectionText('s5');
-  const skillLines = s5raw.split('\n').filter(l => l.trim());
-  const s5Paras = skillLines.map(l =>
-    new Paragraph({
-      children: [new TextRun({ text: '• ' + l.trim(), size: 22, font: 'Arial' })],
-      spacing: { before: 60, after: 60 }
-    })
-  );
-
-  const doc = new Document({
-    creator: 'PAR Smart Assistant v6.1',
-    title: `PAR — ${employeeName}`,
-    description: 'Generated by PAR Smart Assistant',
-    styles: {
-      default: {
-        document: { run: { font: 'Arial', size: 22 } }
-      }
-    },
-    sections: [{
-      properties: {
-        page: {
-          margin: { top: 900, right: 900, bottom: 900, left: 900 }
-        }
-      },
-      children: [
-        ...titleParagraphs,
-
-        sectionHeading('Section 1 — Brief Description of Duties'),
-        bodyPara(getSectionText('s1')),
-
-        sectionHeading('Section 2 — Annual Work Plan & Achievements'),
-        s2Content,
-
-        sectionHeading('Section 3 — Extraordinary Contribution'),
-        bodyPara(getSectionText('s3')),
-
-        sectionHeading('Section 4 — Factors that Hindered Performance'),
-        bodyPara(getSectionText('s4')),
-
-        sectionHeading('Section 5 — Three Areas for Skill Upgradation'),
-        ...(s5Paras.length ? s5Paras : [bodyPara(getSectionText('s5'))]),
-
-        sectionHeading('Section 6 — Declaration'),
-        bodyPara(getSectionText('s6')),
-        new Paragraph({ spacing: { before: 480 } }),
-        new Paragraph({
+  // ── Skills list ──
+  function skillParas(rawText) {
+    const lines = rawText.split('\n').filter(l => l.trim());
+    return lines.length
+      ? lines.map((l,i) => new Paragraph({
           children: [
-            new TextRun({ text: 'Signature: ____________________________', size: 22, font: 'Arial' }),
-            new TextRun({ text: '        Date: ________________', size: 22, font: 'Arial' })
-          ]
+            new TextRun({ text: `Area ${i+1}: `, bold: true, size: 22, font: 'Arial', color: TEAL }),
+            new TextRun({ text: l.replace(/^Area\s*\d+:\s*/i,'').replace(/^[•\-]\s*/,'').trim(), size: 22, font: 'Arial', color: BLACK })
+          ],
+          spacing: { before: 80, after: 80 },
+          indent: { left: 120 }
+        }))
+      : [bodyP(rawText)];
+  }
+
+  // ── Spacer ──
+  function spacer(before=120) { return new Paragraph({ spacing: { before } }); }
+
+  // ════════════════════════════════
+  // BUILD DOCUMENT
+  // ════════════════════════════════
+  const doc = new Document({
+    creator: 'PAR Smart Assistant v6.2',
+    title: `PAR — ${employeeName} — ${period}`,
+    description: 'Generated by PAR Smart Assistant | Developed by Dr. Hrushikesh Gosai MDS OMFS',
+    styles: { default: { document: { run: { font: 'Arial', size: 22 } } } },
+    sections: [{
+      properties: { page: { margin: { top: 900, right: 900, bottom: 900, left: 900 } } },
+      children: [
+
+        // ── TITLE ──
+        new Paragraph({
+          children: [new TextRun({ text: 'ANNUAL PERFORMANCE APPRAISAL REPORT', bold: true, size: 36, font: 'Arial', color: DKTEAL })],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 80 }
         }),
         new Paragraph({
-          children: [new TextRun({ text: `Name: ${employeeName}`, size: 22, font: 'Arial' })],
-          spacing: { before: 80 }
+          children: [new TextRun({ text: 'Gujarat Health & Family Welfare Department  |  Karmayogi Gujarat', size: 22, font: 'Arial', color: GRAY, italics: true })],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 240 }
         }),
 
-        sectionHeading('Section 7 — Additional Charge'),
-        bodyPara(getSectionText('s7'))
+        // ── EMPLOYEE DETAILS TABLE ──
+        infoTable([
+          ['Employee Name', employeeName],
+          ['Designation', designation],
+          ['Speciality / Dept', speciality || 'N/A'],
+          ['Facility / Institute', facility || 'N/A'],
+          ['Review Period', period]
+        ]),
+        spacer(320),
+
+        // ── SECTION 1 ──
+        secHead('Section 1 — Brief Description of Duties'),
+        spacer(80),
+        bodyP(getSec('s1')),
+        spacer(120),
+
+        // ── SECTION 2 ──
+        secHead('Section 2 — Annual Work Plan & Achievements'),
+        spacer(80),
+        achievementTable(getSec('s2')),
+        spacer(120),
+
+        // ── SECTION 3 ──
+        secHead('Section 3 — Extraordinary Contribution'),
+        spacer(80),
+        bodyP(getSec('s3')),
+        spacer(120),
+
+        // ── SECTION 4 ──
+        secHead('Section 4 — Factors that Hindered Performance'),
+        spacer(80),
+        bodyP(getSec('s4')),
+        spacer(120),
+
+        // ── SECTION 5 ──
+        secHead('Section 5 — Three Areas for Skill Upgradation'),
+        spacer(80),
+        ...skillParas(getSec('s5')),
+        spacer(120),
+
+        // ── SECTION 6 ──
+        secHead('Section 6 — Declaration'),
+        spacer(80),
+        bodyP(getSec('s6')),
+        spacer(360),
+        new Paragraph({
+          children: [new TextRun({ text: 'Signature: _______________________________', size: 22, font: 'Arial', color: BLACK })],
+          indent: { left: 120 }
+        }),
+        spacer(120),
+        new Paragraph({
+          children: [new TextRun({ text: `Name: ${employeeName}`, size: 22, font: 'Arial', color: BLACK })],
+          indent: { left: 120 }
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: `Designation: ${designation}`, size: 22, font: 'Arial', color: BLACK })],
+          indent: { left: 120 }
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: 'Date: ____________________', size: 22, font: 'Arial', color: BLACK })],
+          indent: { left: 120 }
+        }),
+        spacer(120),
+
+        // ── SECTION 7 ──
+        secHead('Section 7 — Additional Charge'),
+        spacer(80),
+        bodyP(getSec('s7')),
+        spacer(360),
+
+        // ── FOOTER ──
+        new Paragraph({
+          children: [new TextRun({ text: 'Generated by PAR Smart Assistant  |  Developed by Dr. Hrushikesh Gosai MDS OMFS', size: 18, font: 'Arial', color: 'aaaaaa', italics: true })],
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 200 }
+        })
       ]
     }]
   });
 
-  const blob = await Packer.toBlob(doc);
-  const filename = `PAR_${employeeName.replace(/\s+/g,'_')}_${new Date().getFullYear()}.docx`;
-  saveAs(blob, filename);
+  try {
+    const blob = await Packer.toBlob(doc);
+    const fname = `PAR_${employeeName.replace(/\s+/g,'_')}_${new Date().getFullYear()}.docx`;
+    saveAs(blob, fname);
+  } catch(e) {
+    alert('DOCX generation error: ' + e.message + '\n\nTry the Print/PDF option instead.');
+    console.error(e);
+  }
 }
 
+// ═══════════════════════════════════════════════════════════
+// PDF via PRINT
 // ═══════════════════════════════════════════════════════════
 // PDF via PRINT — clean print stylesheet
 // ═══════════════════════════════════════════════════════════
