@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PAR Smart Assistant</title>
+  <style>
+    :root{--bg:#f0f4f8;--card:#fff;--ink:#1f2937;--muted:#6b7280;--line:#dbe3ee;--accent:#0f766e;--accent2:#115e59;--warn:#b45309;--err:#b91c1c;--ok:#15803d;--shadow:0 8px 28px rgba(15,23,42,.09);--r:16px;}
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;}
+    .hero{background:linear-gradient(135deg,#0f766e,#134e4a);color:#fff;padding:24px 28px;}
+    .hero h1{margin:0 0 4px;font-size:26px;} .hero p{margin:0;color:rgba(255,255,255,.88);font-size:13px;}
+    .progress-wrap{background:#fff;border-bottom:1px solid var(--line);padding:13px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+    .progress{display:flex;justify-content:center;max-width:860px;margin:0 auto;padding:0 16px;}
+    .step-dot{display:flex;flex-direction:column;align-items:center;flex:1;position:relative;}
+    .step-dot:not(:last-child)::after{content:'';position:absolute;top:16px;left:50%;width:100%;height:2px;background:#e5e7eb;z-index:0;}
+    .step-dot.done::after{background:var(--accent);}
+    .dot-circle{width:32px;height:32px;border-radius:50%;border:2px solid #d1d5db;background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#9ca3af;position:relative;z-index:1;transition:all .25s;}
+    .step-dot.active .dot-circle{border-color:var(--accent);background:var(--accent);color:#fff;}
+    .step-dot.done .dot-circle{border-color:var(--accent);background:var(--accent);color:#fff;}
+    .dot-label{font-size:10px;color:var(--muted);margin-top:4px;text-align:center;}
+    .step-dot.active .dot-label,.step-dot.done .dot-label{color:var(--accent);font-weight:700;}
+    .container{max-width:1080px;margin:0 auto;padding:22px 20px;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:22px;margin-bottom:18px;}
+    .card.complete{border-left:4px solid var(--ok);}
+    .card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+    .badge{display:inline-flex;align-items:center;gap:5px;background:#d1fae5;color:#065f46;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;}
+    .badge.done{background:#dcfce7;color:var(--ok);}
+    .check-icon{display:none;font-size:12px;}.badge.done .check-icon{display:inline;}
+    h2{margin:0;font-size:18px;}
+    .sub{color:var(--muted);margin-bottom:14px;font-size:13px;}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+    .dyn-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+    .field{display:flex;flex-direction:column;gap:4px;}
+    label{font-weight:600;font-size:13px;}
+    input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #cfd8e3;background:#fff;font-size:13px;color:var(--ink);transition:border-color .2s;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+    input.error,select.error{border-color:var(--err)!important;}
+    textarea{min-height:88px;resize:vertical;}
+    .err-msg{color:var(--err);font-size:11px;font-weight:600;display:none;}
+    .err-msg.show{display:block;}
+    .nohp-tag,.iphs-tag{font-size:10px;padding:2px 6px;border-radius:999px;font-weight:700;margin-left:4px;vertical-align:middle;}
+    .nohp-tag{background:#dbeafe;color:#1e40af;} .iphs-tag{background:#ede9fe;color:#5b21b6;}
+    .group-label{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px;grid-column:1/-1;padding-bottom:4px;border-bottom:1px solid var(--line);}
+    .warn-note{color:var(--warn);font-size:12px;font-weight:600;padding:10px 14px;background:#fef3c7;border-radius:8px;grid-column:1/-1;}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+    button{border:0;padding:11px 22px;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;transition:all .2s;}
+    .btn-primary{background:var(--accent);color:#fff;} .btn-primary:hover{background:var(--accent2);}
+    .btn-secondary{background:#e5e7eb;color:#111827;} .btn-secondary:hover{background:#d1d5db;}
+    .btn-generate{background:#1d4ed8;color:#fff;} .btn-generate:hover{background:#1e40af;}
+    .btn-copy{background:#374151;color:#fff;padding:8px 16px;font-size:12px;border-radius:8px;border:0;cursor:pointer;}
+    .btn-copy:hover{background:#1f2937;}
+    .form-err-banner{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 14px;color:var(--err);font-size:13px;font-weight:600;display:none;margin-top:10px;}
+    .form-err-banner.show{display:block;}
+    .hidden{display:none!important;}
+    .footer-note{color:var(--muted);font-size:11px;margin-top:6px;}
+    /* API Key card */
+    .key-card{background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1.5px solid #6ee7b7;border-radius:var(--r);padding:18px 22px;margin-bottom:18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+    .key-card .key-icon{font-size:28px;}
+    .key-card .key-body{flex:1;min-width:200px;}
+    .key-card h3{margin:0 0 4px;font-size:15px;color:var(--accent2);}
+    .key-card p{margin:0;font-size:12px;color:var(--muted);}
+    .key-input-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+    .key-input-row input{flex:1;min-width:200px;font-family:monospace;font-size:12px;letter-spacing:.5px;}
+    .key-status{font-size:12px;font-weight:700;margin-top:6px;}
+    .key-ok{color:var(--ok);} .key-warn{color:var(--warn);}
+    /* PAR output */
+    .par-section{border:1px solid var(--line);border-radius:14px;margin-bottom:16px;overflow:hidden;}
+    .par-section-head{background:linear-gradient(90deg,#f0fdf4,#fff);padding:12px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .par-section-head h3{margin:0;font-size:15px;color:var(--accent2);}
+    .wc{font-size:11px;color:var(--muted);background:#f3f4f6;padding:3px 8px;border-radius:999px;}
+    .par-section-body{padding:16px 18px;}
+    .par-text{font-size:13px;line-height:1.8;white-space:pre-wrap;color:var(--ink);min-height:40px;}
+    .par-text.streaming::after{content:'▌';animation:blink .7s infinite;}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+    .generating-wrap{text-align:center;padding:40px 20px;}
+    .spinner{display:inline-block;width:40px;height:40px;border:4px solid #d1fae5;border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:14px;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .gen-step-label{font-size:12px;font-weight:700;color:var(--accent);margin-top:6px;}
+    .info-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px;font-size:12px;color:#15803d;margin-bottom:14px;}
+    .par-actions-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+    @media(max-width:700px){.grid,.grid-3,.dyn-grid{grid-column:1fr;grid-template-columns:1fr;}.hero h1{font-size:20px;}.container{padding:12px;}.dot-label{font-size:9px;}.key-card{flex-direction:column;}}
+  </style>
+  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+  <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+<style id="printCSS">
+@media print {
+  .hero, .progress-wrap, #parForm, .key-card, .par-actions-bar,
+  .btn-copy, .btn-secondary, .btn-generate, .btn-primary,
+  #generatingCard, .form-err-banner, .footer-note, .info-box { display: none !important; }
+  body { background: #fff !important; font-family: Arial, sans-serif; }
+  .container { padding: 0 !important; max-width: 100% !important; }
+  #parOutputCard { display: block !important; box-shadow: none !important; border: none !important; }
+  .par-section { border: 1px solid #ccc !important; margin-bottom: 14px !important; page-break-inside: avoid; }
+  .par-section-head { background: #f0fdf4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .par-section-head h3 { font-size: 13px !important; }
+  .par-text { font-size: 12px !important; line-height: 1.6 !important; }
+  .badge, .wc { display: none !important; }
+  @page { margin: 1.5cm; size: A4; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>PAR Smart Assistant</h1>
+  <p>Gujarat Health &amp; Family Welfare Department — Karmayogi Gujarat PAR Generator · v6.1</p>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress">
+    <div class="step-dot active" id="pd1"><div class="dot-circle">1</div><div class="dot-label">Profile</div></div>
+    <div class="step-dot" id="pd2"><div class="dot-circle">2</div><div class="dot-label">Work Data</div></div>
+    <div class="step-dot" id="pd3"><div class="dot-circle">3</div><div class="dot-label">Achievements</div></div>
+    <div class="step-dot" id="pd4"><div class="dot-circle">4</div><div class="dot-label">Hindrances</div></div>
+    <div class="step-dot" id="pd5"><div class="dot-circle">5</div><div class="dot-label">Skills</div></div>
+    <div class="step-dot" id="pd6"><div class="dot-circle">6</div><div class="dot-label">Extra Charge</div></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- STATUS BAR -->
+  <div class="key-card" id="keyCard" style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);">
+    <div class="key-icon">🚀</div>
+    <div class="key-body">
+      <h3>PAR Smart Assistant — Ready</h3>
+      <p>Powered by Gemini 2.5 Flash · Secure backend · No API key needed from you · Fill the form below and generate your PAR instantly.</p>
+      <div class="key-status key-ok" id="keyStatus">✅ Connected to secure server — ready to generate!</div>
+    </div>
+  </div>
+
+  <form id="parForm" novalidate>
+
+    <!-- ═══ STEP 1 ═══ -->
+    <div class="card" id="card1">
+      <div class="card-header"><div class="badge" id="badge1"><span class="check-icon">✓</span> Step 1</div><h2>Employee Profile</h2></div>
+      <div class="sub">Required fields marked *</div>
+      <div class="grid" style="margin-bottom:14px;">
+        <div class="field"><label>Employee Name *</label><input id="employeeName" type="text" placeholder="Full name as per service record"/><span class="err-msg" id="err_name">Please enter employee name</span></div>
+        <div class="field"><label>Designation (as per service record)</label><input id="designationText" type="text" placeholder="e.g. Dental Surgeon, Staff Nurse Grade II"/></div>
+      </div>
+      <div class="grid" style="margin-bottom:14px;">
+        <div class="field">
+          <label>PAR Period *</label>
+          <select id="parPeriodSelect">
+            <option value="">Select PAR period</option>
+            <option value="2025-26">01/04/2025 to 31/03/2026 (FY 2025-26)</option>
+            <option value="2024-25">01/04/2024 to 31/03/2025 (FY 2024-25)</option>
+            <option value="2023-24">01/04/2023 to 31/03/2024 (FY 2023-24)</option>
+            <option value="custom">Custom Period (transfer / part-year)</option>
+          </select>
+          <span class="err-msg" id="err_period">Please select a PAR period</span>
+        </div>
+        <div class="field hidden" id="customFromWrap"><label>From Date</label><input id="customFrom" type="date"/></div>
+      </div>
+      <div class="grid hidden" id="customToWrap">
+        <div class="field"><label>To Date</label><input id="customTo" type="date"/><span class="err-msg" id="err_customdate">To date must be after From date</span></div>
+        <div class="field"><label style="font-size:12px;color:var(--muted);">Validation</label><input id="periodDisplay" type="text" readonly style="background:#f9fafb;"/><span class="err-msg" id="err_shortperiod">Period must be more than 3 months</span></div>
+      </div>
+      <div class="grid" style="margin-top:14px;">
+        <div class="field">
+          <label>Profession Group *</label>
+          <select id="professionGroup">
+            <option value="">Select profession</option>
+            <optgroup label="─── Medical">
+              <option value="medical_hosp">Medical Officer — Government Hospital</option>
+              <option value="medical_college">Medical Faculty — Teaching College</option>
+              <option value="ayush">AYUSH Medical Officer</option>
+            </optgroup>
+            <optgroup label="─── Dental">
+              <option value="dental_hosp">Dental Surgeon — Govt Hospital / CHC / SDH</option>
+              <option value="dental_college">Dental Faculty — Government Dental College</option>
+            </optgroup>
+            <optgroup label="─── Nursing">
+              <option value="nursing_hosp">Staff Nurse — Hospital / PHC / CHC / SDH / DH</option>
+              <option value="nursing_college">Staff Nurse — Medical or Dental Teaching College</option>
+            </optgroup>
+            <optgroup label="─── Paramedical">
+              <option value="anm">ANM</option>
+              <option value="pharmacy">Pharmacist</option>
+              <option value="labtech">Laboratory Technician</option>
+              <option value="radiographer">Radiographer / X-ray Technician</option>
+              <option value="healthinsp">Health Inspector / Health Supervisor</option>
+            </optgroup>
+            <optgroup label="─── Administrative">
+              <option value="admin">Admin Staff (UDC / LDC / Head Clerk / Accountant)</option>
+              <option value="nhm">NHM / Contract / Fixed-Pay Staff</option>
+            </optgroup>
+          </select>
+          <span class="err-msg" id="err_profession">Please select a profession</span>
+        </div>
+        <div class="field hidden" id="desigWrap">
+          <label>Designation Level *</label>
+          <select id="desigSelect"><option value="">Select designation</option></select>
+          <span class="err-msg" id="err_desig">Please select a designation</span>
+        </div>
+      </div>
+      <div class="grid hidden" id="specRow" style="margin-top:14px;">
+        <div class="field">
+          <label id="specLabel">Speciality / Department *</label>
+          <select id="specSelect"><option value="">Select speciality</option></select>
+          <span class="err-msg" id="err_spec">Please select a speciality</span>
+        </div>
+        <div class="field hidden" id="instituteWrap">
+          <label>Teaching Institute *</label>
+          <select id="instituteSelect"><option value="">Select institute</option></select>
+          <span class="err-msg" id="err_inst">Please select your institute</span>
+        </div>
+      </div>
+      <div class="grid hidden" id="facilityRow" style="margin-top:14px;">
+        <div class="field"><label>Facility / Posting Name</label><input id="facilityInput" type="text" placeholder="e.g. CHC Vijapur, SDH Dholka, PHC Randheja"/></div>
+      </div>
+      <div class="grid hidden" id="nursingCollegeRow" style="margin-top:14px;">
+        <div class="field">
+          <label>College Type *</label>
+          <select id="nursingCollegeType">
+            <option value="">Select</option>
+            <option value="medical_college">Medical College</option>
+            <option value="dental_college">Dental College</option>
+          </select>
+        </div>
+        <div class="field hidden" id="nursingInstWrap">
+          <label>Teaching Institute</label>
+          <select id="nursingInstSelect"><option value="">Select institute</option></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 2 ═══ -->
+    <div class="card" id="card2">
+      <div class="card-header"><div class="badge" id="badge2"><span class="check-icon">✓</span> Step 2</div><h2>Yearly Work Numbers</h2></div>
+      <div class="sub">All optional — fill only what applies. <span class="nohp-tag">NOHP</span> National Oral Health Programme &nbsp;<span class="iphs-tag">IPHS</span> IPHS 2022 indicator</div>
+      <div id="dynamicFields" class="dyn-grid"><div class="warn-note">⚠️ Complete Step 1 first to load your work fields.</div></div>
+    </div>
+
+    <!-- ═══ STEP 3 ═══ -->
+    <div class="card" id="card3">
+      <div class="card-header"><div class="badge" id="badge3"><span class="check-icon">✓</span> Step 3</div><h2>Additional Achievements</h2></div>
+      <div class="sub">All optional — training, camps, awards, new initiatives.</div>
+      <div class="grid">
+        <div class="field"><label>Training / Workshops Attended</label><textarea id="training" placeholder="Name, duration, organised by, date"></textarea></div>
+        <div class="field"><label>Special Camps / Outreach</label><textarea id="camps" placeholder="Camp name, date, location, beneficiaries"></textarea></div>
+        <div class="field"><label>Awards / Recognition</label><textarea id="awards" placeholder="Award name, given by, year"></textarea></div>
+        <div class="field"><label>New Initiatives Started</label><textarea id="initiatives" placeholder="Any new protocol, system, or activity you started"></textarea></div>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 4 ═══ -->
+    <div class="card" id="card4">
+      <div class="card-header"><div class="badge" id="badge4"><span class="check-icon">✓</span> Step 4</div><h2>Factors that Hindered Performance</h2></div>
+      <div class="sub">Optional — write simply, AI will frame professionally.</div>
+      <div class="field"><textarea id="hindrances" placeholder="e.g. Staff shortage, equipment delay, heavy OPD load, OT not available"></textarea></div>
+    </div>
+
+    <!-- ═══ STEP 5 ═══ -->
+    <div class="card" id="card5">
+      <div class="card-header"><div class="badge" id="badge5"><span class="check-icon">✓</span> Step 5</div><h2>Three Areas for Skill Upgradation</h2></div>
+      <div class="sub">Optional — AI will suggest role-appropriate skills if left blank.</div>
+      <div class="grid-3">
+        <div class="field"><label>Skill Area 1</label><input id="skill1" type="text" placeholder="e.g. Laparoscopic surgery"/></div>
+        <div class="field"><label>Skill Area 2</label><input id="skill2" type="text" placeholder="e.g. Digital radiography"/></div>
+        <div class="field"><label>Skill Area 3</label><input id="skill3" type="text" placeholder="e.g. PMJAY documentation"/></div>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 6 ═══ -->
+    <div class="card" id="card6">
+      <div class="card-header"><div class="badge" id="badge6"><span class="check-icon">✓</span> Step 6</div><h2>Additional Charge (if any)</h2></div>
+      <div class="sub">Optional.</div>
+      <div class="grid">
+        <div class="field"><label>Held Additional Charge?</label><select id="additionalCharge"><option value="no">No</option><option value="yes">Yes</option></select></div>
+        <div class="field hidden" id="addlDetailsWrap"><label>Additional Charge Details</label><textarea id="additionalChargeDetails" placeholder="Post name, period held, key duties"></textarea></div>
+      </div>
+    </div>
+
+    <!-- ═══ ACTIONS ═══ -->
+    <div class="card">
+      <div class="actions">
+        <button type="button" class="btn-primary" onclick="doPreview()">&#128196; Preview &amp; Validate</button>
+        <button type="button" class="btn-generate hidden" id="generateBtn" onclick="generatePAR()">&#9889; ⚡ Generate PAR with Gemini 2.5 Flash</button>
+        <button type="button" class="btn-secondary" onclick="doReset()">&#8635; Reset Form</button>
+      </div>
+      <div class="form-err-banner hidden" id="formErrBanner">⚠️ Please fix the highlighted errors above before proceeding.</div>
+      <div class="footer-note">PAR Smart Assistant v6.1 · Powered by Gemini 2.5 Flash · Secure · No API key needed · Backend protected</div>
+    </div>
+  </form>
+
+  <!-- SPINNER -->
+  <div class="card hidden" id="generatingCard">
+    <div class="generating-wrap">
+      <div class="spinner"></div>
+      <div style="font-size:14px;color:var(--muted);">Generating your PAR with Gemini...</div>
+      <div class="gen-step-label" id="genStepLabel">Sending to Gemini 2.5 Flash...</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">Usually takes 15–30 seconds.</div>
+    </div>
+  </div>
+
+  <!-- PAR OUTPUT -->
+  <div class="card hidden" id="parOutputCard">
+    <div class="card-header"><div class="badge done"><span class="check-icon">✓</span> PAR Ready</div><h2>Your Generated PAR Draft</h2></div>
+    <div class="info-box">✅ All 7 sections generated. Click any section text to edit inline. Then copy-paste into Karmayogi Gujarat portal.</div>
+    <div class="par-actions-bar">
+      <button type="button" class="btn-copy" onclick="copyAll()">📋 Copy All Sections</button>
+      <button type="button" class="btn-secondary" style="padding:8px 16px;font-size:12px;" onclick="regenPAR()">🔄 Regenerate</button>
+      <button type="button" style="background:#1d4ed8;color:#fff;padding:8px 16px;font-size:12px;border-radius:8px;border:0;cursor:pointer;font-weight:700;" onclick="downloadDOCX()">📄 Download DOCX</button>
+      <button type="button" style="background:#dc2626;color:#fff;padding:8px 16px;font-size:12px;border-radius:8px;border:0;cursor:pointer;font-weight:700;" onclick="downloadPDF()">🖨️ Print / Save PDF</button>
+    </div>
+    <div id="parOutputWrap"></div>
+  </div>
+
+</div><!-- end container -->
+
+<script>
+// Key managed server-side — no client key needed
+
+// ═══════════════════════════════════════════════════════════
+// STATIC DATA
+// ═══════════════════════════════════════════════════════════
+const DENTAL_COLLEGES = ['Govt. Dental College & Hospital, Ahmedabad','Govt. Dental College & Hospital, Jamnagar','Siddhpur Dental College & Hospital, Patan','AMC Dental College & Hospital, Ahmedabad'];
+const MEDICAL_COLLEGES = ['B.J. Medical College, Ahmedabad','Medical College & SSG Hospital, Vadodara','M.P. Shah Govt. Medical College, Jamnagar','Govt. Medical College, Surat','Govt. Medical College, Bhavnagar','PDU Medical College, Rajkot','Narendra Modi Medical College, Ahmedabad','NHL Municipal Medical College, Ahmedabad','SMIMER, Surat','AIIMS Rajkot','GMERS Medical College, Sola','GMERS Medical College, Gotri, Vadodara','GMERS Medical College, Gandhinagar','GMERS Medical College, Dharpur, Patan','GMERS Medical College, Valsad','GMERS Medical College, Himmatnagar','GMERS Medical College, Junagadh','GMERS Medical College, Vadnagar, Mehsana','GMERS Medical College, Morbi','GMERS Medical College, Godhra','GMERS Medical College, Porbandar','GMERS Medical College, Navsari','GMERS Medical College, Rajpipla'];
+const DESIG = {
+  medical_hosp: ['Medical Officer (MBBS)','Medical Officer — Specialist (PG)','CDMO / Civil Surgeon / Medical Superintendent'],
+  medical_college: ['Tutor / Demonstrator','Assistant Professor','Associate Professor','Professor','Professor & HOD'],
+  dental_hosp: ['Dental Surgeon / Dental Officer','CDHO (Chief District Health Officer – Dental)'],
+  dental_college: ['Tutor / Demonstrator','Assistant Professor','Associate Professor','Professor','Professor & HOD']
+};
+const MED_SPEC = ['General Medicine','General Surgery','Obstetrics & Gynaecology','Paediatrics','Orthopaedics','ENT','Ophthalmology','Psychiatry','Dermatology','Anaesthesia','Radiology (Diagnostic)','Pathology','Microbiology','Biochemistry','Community Medicine','Forensic Medicine','Anatomy','Physiology','Pharmacology'];
+const DENT_SPEC = ['Oral & Maxillofacial Surgery (OMFS)','Conservative Dentistry & Endodontics','Prosthodontics & Crown Bridge','Orthodontics & Dentofacial Orthopaedics','Periodontics','Oral Medicine & Radiology','Paediatric & Preventive Dentistry','Public Health Dentistry','Oral Pathology & Microbiology'];
+
+const F = {
+  nohp_dental:[{g:'NOHP Dental Indicators'},{l:'New patients registered',t:'nohp'},{l:'Total OPD attendances',t:'nohp'},{l:'Oral examination & diagnosis',t:'nohp'},{l:'Scaling (prophylaxis)',t:'nohp'},{l:'Temporary restorations',t:'nohp'},{l:'Permanent restorations',t:'nohp'},{l:'Root canal treatments (RCT)',t:'nohp'},{l:'Simple extractions',t:'nohp'},{l:'Surgical extractions / minor oral surgery',t:'nohp'},{l:'Dentures / prosthesis provided',t:'nohp'},{l:'Fluoride application (children)',t:'nohp'},{l:'Pit & fissure sealants',t:'nohp'},{l:'Tobacco cessation counselling sessions',t:'nohp'},{l:'Oral cancer screening done',t:'nohp'},{l:'Referrals to higher centre',t:'nohp'},{l:'PMJAY patients treated'},{l:'School dental camps organised'},{l:'Community dental camps organised'},{l:'IEC / awareness activities conducted'}],
+  dent_omfs:[{g:'OMFS Clinical Work'},{l:'Major surgeries performed'},{l:'Minor surgeries performed'},{l:'TMJ procedures done'},{l:'Trauma & fracture cases managed'},{l:'Tumour / pathology cases managed'},{l:'Cleft lip / palate cases'},{l:'Orthognathic surgery cases'},{l:'PMJAY surgical patients'},{l:'Total OPD patients seen'}],
+  dent_endo:[{g:'Conservative Dentistry & Endodontics'},{l:'Root canal treatments (RCT)'},{l:'Permanent restorations done'},{l:'Bleaching / cosmetic cases'},{l:'Re-RCT cases'},{l:'Total OPD patients seen'}],
+  dent_prostho:[{g:'Prosthodontics'},{l:'Complete dentures fabricated'},{l:'Removable partial dentures'},{l:'Fixed crowns & bridges'},{l:'Implant-supported prostheses'},{l:'Maxillofacial prostheses'},{l:'Total OPD patients seen'}],
+  dent_ortho:[{g:'Orthodontics'},{l:'New orthodontic cases'},{l:'Fixed appliances placed'},{l:'Removable appliances placed'},{l:'Interceptive / preventive cases'},{l:'Cases completed / debonded'},{l:'Total OPD patients seen'}],
+  dent_perio:[{g:'Periodontics'},{l:'Scaling & root planing done'},{l:'Periodontal surgeries performed'},{l:'Implant placements done'},{l:'Laser periodontal procedures'},{l:'Total OPD patients seen'}],
+  dent_oralmed:[{g:'Oral Medicine & Radiology'},{l:'OPD patients diagnosed'},{l:'Radiographs taken & interpreted'},{l:'OPG / CBCT reports issued'},{l:'Special investigations done'},{l:'Oral mucosal lesion cases managed'}],
+  dent_paedo:[{g:'Paediatric Dentistry'},{l:'Paediatric OPD cases'},{l:'Preventive treatments'},{l:'Pulpotomy / pulpectomy done'},{l:'Space maintainers placed'},{l:'School dental camps conducted'}],
+  dent_phd:[{g:'Public Health Dentistry'},{l:'Community surveys conducted'},{l:'Community dental camps organised'},{l:'School health programmes conducted'},{l:'IEC / awareness activities'},{l:'Tobacco cessation sessions'},{l:'Oral cancer screenings done'}],
+  dent_oralpath:[{g:'Oral Pathology & Microbiology'},{l:'Biopsy & histopathology reports issued'},{l:'Cytology / FNAC reports issued'},{l:'Haematological investigations done'},{l:'Immunohistochemistry cases'},{l:'Museum specimens prepared'},{l:'Lab QC checks done'}],
+  academic:[{g:'Academic & Teaching Work'},{l:'UG theory lectures taken'},{l:'UG practical / clinical sessions taken'},{l:'PG students supervised'},{l:'Dissertations / theses supervised'},{l:'CMEs / workshops organised'},{l:'Invited lectures delivered'},{l:'Conference presentations'},{l:'Peer-reviewed publications'},{l:'Research projects ongoing'}],
+  academic_senior:[{g:'HOD / Senior Faculty Work'},{l:'PhD scholars supervised'},{l:'Research grants secured (Rs)'},{l:'External / CSR funds secured (Rs)'},{l:'Administrative committees chaired'},{l:'National / international awards received'}],
+  med_hosp_gen:[{g:'Clinical Work — IPHS Indicators'},{l:'OPD patients attended',t:'iphs'},{l:'IPD patients admitted & managed',t:'iphs'},{l:'Emergency cases handled',t:'iphs'},{l:'Normal deliveries conducted',t:'iphs'},{l:'Referrals to higher centre',t:'iphs'},{l:'PMJAY patients processed'},{l:'Health / screening camps organised'},{l:'Outreach / field visits done'}],
+  sp_obg:[{g:'OBG Speciality'},{l:'ANC cases managed'},{l:'Normal deliveries'},{l:'Instrumental deliveries'},{l:'C-section cases'},{l:'High-risk pregnancies managed'},{l:'Family planning cases'},{l:'MTP cases managed'}],
+  sp_surg:[{g:'General Surgery'},{l:'Major surgeries performed'},{l:'Minor surgeries performed'},{l:'Emergency surgeries handled'},{l:'Laparoscopic / endoscopic procedures'}],
+  sp_paed:[{g:'Paediatrics'},{l:'Neonatal cases managed'},{l:'Immunization sessions conducted'},{l:'SAM / MAM cases managed'},{l:'RBSK screening done'}],
+  sp_ortho:[{g:'Orthopaedics'},{l:'Fracture cases managed'},{l:'Surgical fixation cases'},{l:'Trauma emergencies handled'},{l:'Physiotherapy referrals made'}],
+  sp_ent:[{g:'ENT'},{l:'ENT OPD cases attended'},{l:'Minor ENT procedures done'},{l:'ENT surgeries performed'},{l:'Audiometry / hearing tests done'}],
+  sp_opth:[{g:'Ophthalmology'},{l:'Eye OPD patients seen'},{l:'Cataract surgeries done'},{l:'Vision screening camps conducted'},{l:'Blindness / low vision cases managed'}],
+  sp_psych:[{g:'Psychiatry'},{l:'Psychiatric OPD cases'},{l:'NMHP activities conducted'},{l:'Counselling sessions given'},{l:'De-addiction referrals'}],
+  sp_derm:[{g:'Dermatology'},{l:'Dermatology OPD cases'},{l:'Leprosy cases managed'},{l:'Skin procedure cases done'}],
+  sp_anaes:[{g:'Anaesthesia'},{l:'General anaesthesia administered'},{l:'Spinal / regional blocks given'},{l:'ICU patients managed'},{l:'Pain clinic cases managed'}],
+  sp_radio:[{g:'Radiology'},{l:'X-rays taken / reported'},{l:'USG examinations done'},{l:'CT scan assistance / reporting'},{l:'Special procedure assistance'}],
+  sp_path:[{g:'Pathology'},{l:'Histopathology reports issued'},{l:'Cytology / FNAC reports'},{l:'Autopsies performed'},{l:'Special stains done'}],
+  sp_micro:[{g:'Microbiology'},{l:'Culture & sensitivity tests done'},{l:'NABL / accreditation activities'},{l:'Infection control rounds'},{l:'AFB / TB tests done'}],
+  sp_biochem:[{g:'Biochemistry'},{l:'Biochemistry tests done'},{l:'QC rounds completed'},{l:'New tests standardised'}],
+  sp_community:[{g:'Community Medicine'},{l:'Field visits conducted'},{l:'Health surveys done'},{l:'IEC activities organised'},{l:'Community camps organised'},{l:'Epidemiological investigations done'}],
+  sp_forensic:[{g:'Forensic Medicine'},{l:'Medico-legal cases examined'},{l:'Post-mortem examinations done'},{l:'Court depositions given'},{l:'DNA / toxicology cases'}],
+  sp_anatomy:[{g:'Anatomy'},{l:'Dissection sessions conducted'},{l:'Museum specimens prepared'},{l:'Anatomy practical exams conducted'}],
+  sp_physio:[{g:'Physiology'},{l:'Physiology practical sessions taken'},{l:'Research experiments conducted'}],
+  sp_pharma:[{g:'Pharmacology'},{l:'Pharmacology practical sessions taken'},{l:'Animal experiments supervised'},{l:'Drug trials / studies assisted'}],
+  med_admin:[{g:'Administrative Work'},{l:'Supervisory / inspection visits done'},{l:'Scheme implementation activities'},{l:'Staff meetings / reviews conducted'},{l:'NHM / PMJAY scheme reviews'}],
+  ayush:[{g:'AYUSH Clinical Work'},{l:'Total OPD patients seen'},{l:'Panchakarma / therapeutic procedures done'},{l:'Chronic disease patients managed'},{l:'Yoga / wellness sessions conducted'},{l:'Community AYUSH camps organised'},{l:'PMJAY / NHM patients processed'}],
+  nursing:[{g:'Nursing Work — IPHS'},{l:'Patients nursed / attended',t:'iphs'},{l:'IV cannulations / injections administered'},{l:'Dressings / wound care done'},{l:'Deliveries conducted / assisted'},{l:'Pre & post-operative nursing care'},{l:'Patient & family education sessions'},{l:'Blood transfusions assisted'},{l:'ICU / critical care patients managed'}],
+  nursing_college:[{g:'Nursing — Teaching College'},{l:'Patients nursed / attended',t:'iphs'},{l:'IV cannulations / injections administered'},{l:'Dressings / wound care done'},{l:'Deliveries conducted / assisted'},{l:'Pre & post-operative nursing care'},{l:'Patient & family education sessions'},{l:'Nursing student supervision sessions'},{l:'Nursing procedure demonstrations given'},{l:'ICU / critical care patients managed'}],
+  anm:[{g:'ANM Field Work — RCH'},{l:'ANC registrations done',t:'iphs'},{l:'Institutional deliveries facilitated',t:'iphs'},{l:'Home deliveries attended'},{l:'Children fully immunized',t:'iphs'},{l:'Immunization sessions (VHND) conducted'},{l:'Home visits made',t:'iphs'},{l:'Family planning cases'},{l:'Newborn home visits (HBNC)'},{l:'High-risk pregnancies identified & referred'}],
+  pharmacist:[{g:'Pharmacy Work'},{l:'Total prescriptions dispensed'},{l:'PMJAY prescriptions dispensed'},{l:'Drug indent / procurement cycles managed'},{l:'Near-expiry batches identified & disposed'},{l:'Stock-out situations prevented'},{l:'Medication counselling sessions done'}],
+  labtech:[{g:'Laboratory Work — IPHS'},{l:'Total lab tests done',t:'iphs'},{l:'Haematology tests'},{l:'Biochemistry tests'},{l:'Microbiology / culture tests'},{l:'RDT tests (malaria / dengue / typhoid)'},{l:'HIV / VDRL / Hepatitis serology'},{l:'IQC checks done'},{l:'EQAS rounds participated'}],
+  radiographer:[{g:'Radiology / X-ray Work'},{l:'X-rays taken'},{l:'USG examinations done'},{l:'Special investigations assisted'},{l:'Equipment maintenance / calibration events'}],
+  healthinsp:[{g:'Health Inspection Work'},{l:'Sanitation / premises inspections done'},{l:'Water samples collected & tested'},{l:'Food samples collected'},{l:'Epidemic / disease surveillance activities'},{l:'Fumigation / vector control drives'},{l:'IEC activities conducted'},{l:'Birth & death registrations facilitated'},{l:'School health inspections done'}],
+  admin:[{g:'Administrative Work'},{l:'Files / cases processed'},{l:'Scheme documentation handled'},{l:'RTI / public queries responded'},{l:'Audit / inspection compliance activities'},{l:'Service book / payroll entries updated'},{l:'Procurement / tender processes assisted'}],
+  nhm:[{g:'NHM / Programme Work'},{l:'Beneficiaries screened / covered'},{l:'Community outreach sessions conducted'},{l:'ASHA / field worker coordination meetings'},{l:'MIS reports submitted on time'},{l:'Defaulter follow-up activities done'}]
+};
+
+const MED_SPEC_FIELDS = {'General Medicine':['med_hosp_gen'],'General Surgery':['med_hosp_gen','sp_surg'],'Obstetrics & Gynaecology':['med_hosp_gen','sp_obg'],'Paediatrics':['med_hosp_gen','sp_paed'],'Orthopaedics':['med_hosp_gen','sp_ortho'],'ENT':['med_hosp_gen','sp_ent'],'Ophthalmology':['med_hosp_gen','sp_opth'],'Psychiatry':['med_hosp_gen','sp_psych'],'Dermatology':['med_hosp_gen','sp_derm'],'Anaesthesia':['med_hosp_gen','sp_anaes'],'Radiology (Diagnostic)':['med_hosp_gen','sp_radio'],'Pathology':['sp_path'],'Microbiology':['sp_micro'],'Biochemistry':['sp_biochem'],'Community Medicine':['sp_community'],'Forensic Medicine':['sp_forensic'],'Anatomy':['sp_anatomy'],'Physiology':['sp_physio'],'Pharmacology':['sp_pharma']};
+const DENT_SPEC_FIELDS = {'Oral & Maxillofacial Surgery (OMFS)':['dent_omfs'],'Conservative Dentistry & Endodontics':['dent_endo'],'Prosthodontics & Crown Bridge':['dent_prostho'],'Orthodontics & Dentofacial Orthopaedics':['dent_ortho'],'Periodontics':['dent_perio'],'Oral Medicine & Radiology':['dent_oralmed'],'Paediatric & Preventive Dentistry':['dent_paedo'],'Public Health Dentistry':['dent_phd'],'Oral Pathology & Microbiology':['dent_oralpath']};
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const show = el => el.classList.remove('hidden');
+const hide = el => el.classList.add('hidden');
+function setOpts(sel,arr){sel.innerHTML='<option value="">Select</option>'+arr.map(v=>`<option value="${v}">${v}</option>`).join('');}
+function populateInstitute(sel,type){setOpts(sel,type==='dental_college'?DENTAL_COLLEGES:MEDICAL_COLLEGES);}
+
+function renderFields(keys){
+  const div=$('dynamicFields'); div.innerHTML='';
+  [].concat(keys).forEach(key=>{
+    (F[key]||[]).forEach(f=>{
+      if(f.g){const gl=document.createElement('div');gl.className='group-label';gl.textContent=f.g;div.appendChild(gl);return;}
+      const slug='wk_'+f.l.toLowerCase().replace(/[^a-z0-9]+/g,'_');
+      const tag=f.t==='nohp'?'<span class="nohp-tag">NOHP</span>':f.t==='iphs'?'<span class="iphs-tag">IPHS</span>':'';
+      const w=document.createElement('div');w.className='field';
+      w.innerHTML=`<label>${f.l}${tag}</label><input name="${slug}" type="number" min="0" placeholder="Enter number"/>`;
+      div.appendChild(w);
+    });
+  });
+}
+function resetDynamic(){$('dynamicFields').innerHTML='<div class="warn-note">⚠️ Complete Step 1 first to load your work fields.</div>';}
+
+function updateProgress(){
+  const vals=[
+    !!($('employeeName').value && $('parPeriodSelect').value && $('professionGroup').value),
+    document.querySelectorAll('#dynamicFields input[name]').length > 0,
+    !!($('training').value||$('camps').value||$('awards').value||$('initiatives').value),
+    !!$('hindrances').value,
+    !!($('skill1').value||$('skill2').value||$('skill3').value),
+    true
+  ];
+  vals.forEach((done,i)=>{
+    const dot=$(`pd${i+1}`),badge=$(`badge${i+1}`),card=$(`card${i+1}`);
+    dot.classList.toggle('done',done); dot.classList.toggle('active',!done&&(i===0||vals[i-1]));
+    if(badge)badge.classList.toggle('done',done);
+    if(card)card.classList.toggle('complete',done);
+  });
+}
+document.getElementById('parForm').addEventListener('input',updateProgress);
+document.getElementById('parForm').addEventListener('change',updateProgress);
+
+// ═══════════════════════════════════════════════════════════
+// CASCADE LOGIC
+// ═══════════════════════════════════════════════════════════
+document.getElementById('professionGroup').addEventListener('change',function(){
+  const v=this.value;
+  ['desigWrap','specRow','facilityRow','instituteWrap','nursingCollegeRow','nursingInstWrap'].forEach(id=>hide($(id)));
+  clearErr('profession'); resetDynamic();
+  if(!v) return;
+  const flat={anm:'anm',pharmacy:'pharmacist',labtech:'labtech',radiographer:'radiographer',healthinsp:'healthinsp',admin:'admin',nhm:'nhm'};
+  if(flat[v]){show($('facilityRow'));renderFields(flat[v]);return;}
+  if(v==='ayush'){show($('facilityRow'));renderFields('ayush');return;}
+  if(v==='nursing_hosp'){show($('facilityRow'));renderFields('nursing');return;}
+  if(v==='nursing_college'){show($('nursingCollegeRow'));renderFields('nursing_college');return;}
+  if(v==='medical_hosp'){show($('facilityRow'));show($('desigWrap'));setOpts($('desigSelect'),DESIG.medical_hosp);}
+  if(v==='dental_hosp'){show($('facilityRow'));show($('desigWrap'));setOpts($('desigSelect'),DESIG.dental_hosp);}
+  if(v==='medical_college'){show($('desigWrap'));show($('specRow'));show($('instituteWrap'));setOpts($('desigSelect'),DESIG.medical_college);setOpts($('specSelect'),MED_SPEC);populateInstitute($('instituteSelect'),'medical_college');}
+  if(v==='dental_college'){show($('desigWrap'));show($('specRow'));show($('instituteWrap'));setOpts($('desigSelect'),DESIG.dental_college);setOpts($('specSelect'),DENT_SPEC);populateInstitute($('instituteSelect'),'dental_college');}
+});
+
+document.getElementById('desigSelect').addEventListener('change',function(){
+  const prof=$('professionGroup').value, desig=this.value; if(!desig) return;
+  if(prof==='medical_hosp'){
+    if(desig.includes('CDMO')){renderFields(['med_hosp_gen','med_admin']);return;}
+    if(desig==='Medical Officer (MBBS)'){renderFields(['med_hosp_gen']);return;}
+    show($('specRow'));hide($('instituteWrap'));setOpts($('specSelect'),MED_SPEC);$('specLabel').textContent='Medical Speciality *';resetDynamic();return;
+  }
+  if(prof==='dental_hosp'){renderFields(desig.includes('CDHO')?['nohp_dental','med_admin']:['nohp_dental']);return;}
+  if(prof==='medical_college'||prof==='dental_college') triggerCollegeRender();
+});
+
+document.getElementById('specSelect').addEventListener('change',function(){
+  const prof=$('professionGroup').value; if(!this.value) return;
+  if(prof==='medical_hosp'){renderFields(MED_SPEC_FIELDS[this.value]||['med_hosp_gen']);return;}
+  if(prof==='medical_college'||prof==='dental_college') triggerCollegeRender();
+});
+
+function triggerCollegeRender(){
+  const prof=$('professionGroup').value,spec=$('specSelect').value,desig=$('desigSelect').value;
+  if(!spec||!desig) return;
+  let keys=prof==='medical_college'?(MED_SPEC_FIELDS[spec]||['med_hosp_gen']):(DENT_SPEC_FIELDS[spec]||['dent_omfs']);
+  keys=[...keys,'academic'];
+  if(['Associate Professor','Professor','Professor & HOD'].includes(desig)) keys.push('academic_senior');
+  renderFields(keys);
+}
+
+document.getElementById('nursingCollegeType').addEventListener('change',function(){
+  if(this.value){show($('nursingInstWrap'));populateInstitute($('nursingInstSelect'),this.value);}
+  else hide($('nursingInstWrap'));
+});
+document.getElementById('parPeriodSelect').addEventListener('change',function(){
+  this.value==='custom'?(show($('customFromWrap')),show($('customToWrap'))):(hide($('customFromWrap')),hide($('customToWrap')));
+  clearErr('period');
+});
+function calcPeriod(){
+  const f=$('customFrom').value,t=$('customTo').value; if(!f||!t) return;
+  const d1=new Date(f),d2=new Date(t);
+  if(d2<=d1){showErr('customdate');$('periodDisplay').value='';return;}
+  clearErr('customdate');
+  const m=((d2.getFullYear()-d1.getFullYear())*12)+(d2.getMonth()-d1.getMonth());
+  $('periodDisplay').value=m<3?`⚠️ Only ${m} month(s)`:`✅ Valid (${m} months)`;
+  m<3?showErr('shortperiod'):clearErr('shortperiod');
+}
+[$('customFrom'),$('customTo')].forEach(el=>el.addEventListener('change',calcPeriod));
+$('additionalCharge').addEventListener('change',function(){this.value==='yes'?show($('addlDetailsWrap')):hide($('addlDetailsWrap'));});
+
+// ═══════════════════════════════════════════════════════════
+// VALIDATION
+// ═══════════════════════════════════════════════════════════
+function showErr(id){const el=$(`err_${id}`);if(el)el.classList.add('show');}
+function clearErr(id){const el=$(`err_${id}`);if(el)el.classList.remove('show');}
+
+function validateForm(){
+  let valid=true;
+  function chk(fId,eId){const el=$(fId);if(!el||!el.value.trim()){showErr(eId);if(el)el.classList.add('error');valid=false;}else{clearErr(eId);el.classList.remove('error');}}
+  chk('employeeName','name'); chk('parPeriodSelect','period'); chk('professionGroup','profession');
+  if($('parPeriodSelect').value==='custom'){
+    const f=$('customFrom').value,t=$('customTo').value;
+    if(!f||!t||new Date(t)<=new Date(f)){showErr('customdate');valid=false;}
+    else{clearErr('customdate');
+      const m=((new Date(t).getFullYear()-new Date(f).getFullYear())*12)+(new Date(t).getMonth()-new Date(f).getMonth());
+      m<3?showErr('shortperiod'):clearErr('shortperiod'); if(m<3)valid=false;}
+  }
+  if(!$('desigWrap').classList.contains('hidden')) chk('desigSelect','desig');
+  if(!$('specRow').classList.contains('hidden')) chk('specSelect','spec');
+  if(!$('instituteWrap').classList.contains('hidden')) chk('instituteSelect','inst');
+  return valid;
+}
+
+function doPreview(){
+  hide($('formErrBanner'));
+  document.querySelectorAll('.error').forEach(el=>el.classList.remove('error'));
+  document.querySelectorAll('.err-msg.show').forEach(el=>el.classList.remove('show'));
+  if(!validateForm()){show($('formErrBanner'));const fe=document.querySelector('.error,.err-msg.show');if(fe)fe.scrollIntoView({behavior:'smooth',block:'center'});return;}
+  show($('generateBtn')); $('generateBtn').scrollIntoView({behavior:'smooth'}); updateProgress();
+}
+
+// ═══════════════════════════════════════════════════════════
+// COLLECT PAYLOAD
+// ═══════════════════════════════════════════════════════════
+function collectPayload(){
+  const wk={};
+  document.querySelectorAll('#dynamicFields input[name]').forEach(i=>{if(i.value!=='')wk[i.name.replace('wk_','')]=i.value;});
+  const pSel=$('parPeriodSelect').value;
+  const period=pSel==='custom'?`${$('customFrom').value} to ${$('customTo').value}`:(document.querySelector(`#parPeriodSelect option[value="${pSel}"]`)||{}).textContent||'';
+  return{name:$('employeeName').value,designationText:$('designationText').value,professionGroup:$('professionGroup').value,designation:$('desigSelect').value||'',speciality:$('specSelect').value||'',facility:$('facilityInput').value||$('instituteSelect').value||$('nursingInstSelect').value||'',period,workData:wk,training:$('training').value,camps:$('camps').value,awards:$('awards').value,initiatives:$('initiatives').value,hindrances:$('hindrances').value,skills:[$('skill1').value,$('skill2').value,$('skill3').value].filter(Boolean),addlCharge:$('additionalCharge').value==='yes'?$('additionalChargeDetails').value:''};
+}
+
+// ═══════════════════════════════════════════════════════════
+// BUILD PROMPT
+// ═══════════════════════════════════════════════════════════
+function buildPrompt(p){
+  const workLines=Object.entries(p.workData).map(([k,v])=>`  - ${k.replace(/_/g,' ')}: ${v}`).join('\n')||'  (not provided)';
+  const skillLine=p.skills.length?p.skills.join(', '):'(suggest 3 role-appropriate skills for this designation and speciality)';
+  const isCollegeAdmin=p.professionGroup==='admin'&&p.facility.toLowerCase().match(/college|medical|dental/);
+  return `You are an expert government HR writing assistant helping a Gujarat state health department employee complete their annual Performance Appraisal Report (PAR) on the Karmayogi Gujarat portal.
+
+EMPLOYEE PROFILE:
+- Name: ${p.name}
+- Designation: ${p.designationText||p.designation||p.professionGroup}
+- Speciality / Department: ${p.speciality||'N/A'}
+- Facility / Institute: ${p.facility||'N/A'}${isCollegeAdmin?' (Teaching College — include academic administration duties)':''}
+- PAR Review Period: ${p.period}
+
+ANNUAL WORK DATA:
+${workLines}
+
+ADDITIONAL ACHIEVEMENTS:
+- Trainings / workshops: ${p.training||'None specified'}
+- Camps / outreach: ${p.camps||'None specified'}
+- Awards / recognition: ${p.awards||'None specified'}
+- New initiatives: ${p.initiatives||'None specified'}
+
+FACTORS THAT HINDERED PERFORMANCE:
+${p.hindrances||'None specified'}
+
+SKILL UPGRADATION AREAS:
+${skillLine}
+
+ADDITIONAL CHARGE HELD:
+${p.addlCharge||'None'}
+
+---
+Generate a complete, polished PAR with all 7 sections. Use formal FIRST-PERSON self-appraisal language (I, my, I have, I organised, I performed, etc.) as this is a self-appraisal report written by the employee themselves. Be specific and quantified wherever numbers are given. Constructive and professional tone throughout. Never use third-person (he, she, the officer, Dr. [name]).
+
+SECTION 1 — BRIEF DESCRIPTION OF DUTIES (80–100 words, flowing first-person paragraph, no bullet points — e.g. "I serve as...", "My responsibilities include...")
+
+SECTION 2 — ANNUAL WORK PLAN & ACHIEVEMENTS (table format: Activity | Target | Achievement, 5–8 rows)
+
+SECTION 3 — EXTRAORDINARY CONTRIBUTION (80–100 words, flowing first-person paragraph — e.g. "During this period, I...", "I am proud to have...")
+
+SECTION 4 — FACTORS THAT HINDERED PERFORMANCE (50–80 words, first-person professional paragraph — e.g. "I faced challenges due to...", "My performance was impacted by...")
+
+SECTION 5 — THREE AREAS FOR SKILL UPGRADATION
+Area 1: [skill]
+Area 2: [skill]
+Area 3: [skill]
+
+SECTION 6 — DECLARATION
+I hereby declare that the information provided in this Performance Appraisal Report is true and correct to the best of my knowledge and belief.
+
+SECTION 7 — ADDITIONAL CHARGE
+${p.addlCharge?'80–100 words describing the additional charge duties professionally.':'Not Applicable'}
+
+Begin each section with the exact heading as shown above.`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// OUTPUT SHELL
+// ═══════════════════════════════════════════════════════════
+const PAR_SECTIONS=[
+  {key:'s1',title:'Section 1 — Brief Description of Duties',limit:'~100 words'},
+  {key:'s2',title:'Section 2 — Annual Work Plan & Achievements',limit:'Table'},
+  {key:'s3',title:'Section 3 — Extraordinary Contribution',limit:'~100 words'},
+  {key:'s4',title:'Section 4 — Factors that Hindered Performance',limit:'~80 words'},
+  {key:'s5',title:'Section 5 — Three Areas for Skill Upgradation',limit:'3 areas'},
+  {key:'s6',title:'Section 6 — Declaration',limit:'Fixed'},
+  {key:'s7',title:'Section 7 — Additional Charge',limit:'~100 words'}
+];
+
+function buildOutputShell(){
+  const wrap=$('parOutputWrap'); wrap.innerHTML='';
+  PAR_SECTIONS.forEach(s=>{
+    const sec=document.createElement('div'); sec.className='par-section'; sec.id='sec_'+s.key;
+    sec.innerHTML=`<div class="par-section-head"><h3>${s.title}</h3><div style="display:flex;gap:8px;align-items:center;"><span class="wc" id="wc_${s.key}">${s.limit}</span><button type="button" class="btn-copy" onclick="copySection('${s.key}')">Copy</button></div></div><div class="par-section-body"><div class="par-text" id="txt_${s.key}" contenteditable="true">⏳ Awaiting generation...</div></div>`;
+    wrap.appendChild(sec);
+  });
+}
+
+function parseSections(fullText){
+  const headings=[
+    {key:'s1',p:/SECTION\s*1\s*[—\-–]+\s*BRIEF/i},
+    {key:'s2',p:/SECTION\s*2\s*[—\-–]+\s*ANNUAL/i},
+    {key:'s3',p:/SECTION\s*3\s*[—\-–]+\s*EXTRAORDINARY/i},
+    {key:'s4',p:/SECTION\s*4\s*[—\-–]+\s*FACTORS/i},
+    {key:'s5',p:/SECTION\s*5\s*[—\-–]+\s*THREE/i},
+    {key:'s6',p:/SECTION\s*6\s*[—\-–]+\s*DECLARATION/i},
+    {key:'s7',p:/SECTION\s*7\s*[—\-–]+\s*ADDITIONAL/i}
+  ];
+  const positions=[];
+  headings.forEach(h=>{const m=fullText.search(h.p);if(m>-1)positions.push({key:h.key,pos:m});});
+  positions.sort((a,b)=>a.pos-b.pos);
+  positions.forEach((sec,i)=>{
+    const content=fullText.slice(sec.pos,i+1<positions.length?positions[i+1].pos:fullText.length).replace(/^SECTION\s*\d+\s*[—\-–]+[^\n]*\n?/i,'').trim();
+    const el=$(`txt_${sec.key}`);
+    if(el&&content){el.textContent=content;const wc=$(`wc_${sec.key}`);if(wc)wc.textContent=content.split(/\s+/).length+' words';}
+  });
+}
+
+function copySection(key){
+  const txt=$(`txt_${key}`).innerText;
+  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>alert('Section copied!'));}
+  else{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Copied!');}
+}
+function copyAll(){
+  let all=''; PAR_SECTIONS.forEach(s=>{all+=`\n\n=== ${s.title} ===\n`+$(`txt_${s.key}`).innerText;});
+  if(navigator.clipboard){navigator.clipboard.writeText(all.trim()).then(()=>alert('All 7 sections copied!'));}
+  else{const ta=document.createElement('textarea');ta.value=all.trim();document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Copied!');}
+}
+function regenPAR(){hide($('parOutputCard'));generatePAR();}
+
+// ═══════════════════════════════════════════════════════════
+// SECURE BACKEND CALL — key never exposed to browser
+// ═══════════════════════════════════════════════════════════
+async function generatePAR(){
+  const payload=collectPayload();
+  const prompt=buildPrompt(payload);
+  hide($('parOutputCard')); show($('generatingCard'));
+  $('generatingCard').scrollIntoView({behavior:'smooth'});
+  $('genStepLabel').textContent='Sending to Gemini 2.5 Flash via secure server...';
+
+  try{
+    const res = await fetch('/api/gemini', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ prompt })
+    });
+
+    if(!res.ok){
+      const err=await res.json();
+      throw new Error(err.error||`Server error: HTTP ${res.status}`);
+    }
+
+    const data=await res.json();
+    const fullText=data.text||'';
+    if(!fullText) throw new Error('Empty response from server. Please try again.');
+
+    buildOutputShell();
+    hide($('generatingCard')); show($('parOutputCard'));
+    $('parOutputCard').scrollIntoView({behavior:'smooth'});
+    parseSections(fullText);
+
+  }catch(err){
+    hide($('generatingCard'));
+    $('parOutputWrap').innerHTML=`<div style="padding:20px;background:#fef2f2;border-radius:12px;color:#b91c1c;">
+      <strong>⚠️ Error:</strong><br><br>${err.message}<br><br>
+      <strong>If this persists, please contact the administrator.</strong>
+    </div>`;
+    show($('parOutputCard'));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════════════════════
+function doReset(){
+  document.getElementById('parForm').reset();
+  ['desigWrap','specRow','facilityRow','instituteWrap','nursingCollegeRow','nursingInstWrap',
+   'customFromWrap','customToWrap','addlDetailsWrap','parOutputCard','generatingCard','formErrBanner'].forEach(id=>hide($(id)));
+  hide($('generateBtn')); resetDynamic();
+  document.querySelectorAll('.error').forEach(el=>el.classList.remove('error'));
+  document.querySelectorAll('.err-msg.show').forEach(el=>el.classList.remove('show'));
+  document.querySelectorAll('.card.complete').forEach(c=>c.classList.remove('complete'));
+  document.querySelectorAll('.step-dot').forEach((d,i)=>{d.classList.remove('done','active');if(i===0)d.classList.add('active');});
+  document.querySelectorAll('.badge.done').forEach(b=>b.classList.remove('done'));
+}
+
+updateProgress();
+
+
+// ═══════════════════════════════════════════════════════════
+// DOCX GENERATOR — mirrors Karmayogi PAR form layout
+// ═══════════════════════════════════════════════════════════
+async function downloadDOCX() {
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+          WidthType, BorderStyle, AlignmentType, HeadingLevel, ShadingType } = docx;
+
+  const employeeName = document.getElementById('employeeName').value || 'Employee';
+  const designation  = document.getElementById('designationText').value || '';
+  const facility     = document.getElementById('facilityInput')?.value ||
+                       document.getElementById('instituteSelect')?.value || '';
+  const period       = (document.querySelector('#parPeriodSelect option:checked') || {}).textContent || '';
+
+  function getSectionText(key) {
+    const el = document.getElementById('txt_' + key);
+    return el ? el.innerText.trim() : '';
+  }
+
+  // Helper: section heading paragraph
+  function sectionHeading(text) {
+    return new Paragraph({
+      children: [new TextRun({ text, bold: true, size: 26, color: '0f766e', font: 'Arial' })],
+      spacing: { before: 320, after: 120 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '0f766e' } }
+    });
+  }
+
+  // Helper: body paragraph
+  function bodyPara(text) {
+    return new Paragraph({
+      children: [new TextRun({ text: text || '—', size: 22, font: 'Arial' })],
+      spacing: { before: 80, after: 80 },
+      alignment: AlignmentType.JUSTIFIED
+    });
+  }
+
+  // Helper: label-value row
+  function labelValue(label, value) {
+    return new Paragraph({
+      children: [
+        new TextRun({ text: label + ': ', bold: true, size: 22, font: 'Arial' }),
+        new TextRun({ text: value || '—', size: 22, font: 'Arial' })
+      ],
+      spacing: { before: 60, after: 60 }
+    });
+  }
+
+  // Parse Section 2 table text into rows
+  function parseTableRows(rawText) {
+    const lines = rawText.split('\n').filter(l => l.includes('|'));
+    return lines.map(line => {
+      const cells = line.split('|').map(c => c.trim()).filter(c => c.length > 0);
+      return cells;
+    });
+  }
+
+  function makeTable(rows) {
+    if (!rows || rows.length === 0) return bodyPara(getSectionText('s2'));
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: rows.map((cells, ri) =>
+        new TableRow({
+          children: cells.map(cellText =>
+            new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({
+                  text: cellText,
+                  bold: ri === 0,
+                  size: 20,
+                  font: 'Arial'
+                })],
+                spacing: { before: 60, after: 60 }
+              })],
+              shading: ri === 0 ? { type: ShadingType.SOLID, color: 'd1fae5' } : undefined
+            })
+          )
+        })
+      )
+    });
+  }
+
+  // Title block
+  const titleParagraphs = [
+    new Paragraph({
+      children: [new TextRun({ text: 'PERFORMANCE APPRAISAL REPORT', bold: true, size: 32, font: 'Arial', color: '0f766e' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 0, after: 120 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: 'Gujarat Health & Family Welfare Department', size: 24, font: 'Arial', color: '374151' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 80 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: 'Karmayogi Gujarat — Annual PAR', size: 22, font: 'Arial', color: '6b7280', italics: true })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 240 }
+    }),
+    // Employee details table
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({ children: [
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Name', bold: true, font: 'Arial', size: 22 })] })], shading: { type: ShadingType.SOLID, color: 'f0fdf4' } }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: employeeName, font: 'Arial', size: 22 })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Designation', bold: true, font: 'Arial', size: 22 })] })], shading: { type: ShadingType.SOLID, color: 'f0fdf4' } }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: designation, font: 'Arial', size: 22 })] })] })
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Facility / Institute', bold: true, font: 'Arial', size: 22 })] })], shading: { type: ShadingType.SOLID, color: 'f0fdf4' } }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: facility, font: 'Arial', size: 22 })] })], columnSpan: 3 })
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Review Period', bold: true, font: 'Arial', size: 22 })] })], shading: { type: ShadingType.SOLID, color: 'f0fdf4' } }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: period, font: 'Arial', size: 22 })] })], columnSpan: 3 })
+        ]})
+      ]
+    }),
+    new Paragraph({ spacing: { after: 240 } })
+  ];
+
+  // Section 2 table
+  const s2raw = getSectionText('s2');
+  const tableRows = parseTableRows(s2raw);
+  const s2Content = tableRows.length > 1 ? makeTable(tableRows) : bodyPara(s2raw);
+
+  // Section 5 — skill list
+  const s5raw = getSectionText('s5');
+  const skillLines = s5raw.split('\n').filter(l => l.trim());
+  const s5Paras = skillLines.map(l =>
+    new Paragraph({
+      children: [new TextRun({ text: '• ' + l.trim(), size: 22, font: 'Arial' })],
+      spacing: { before: 60, after: 60 }
+    })
+  );
+
+  const doc = new Document({
+    creator: 'PAR Smart Assistant v6.1',
+    title: `PAR — ${employeeName}`,
+    description: 'Generated by PAR Smart Assistant',
+    styles: {
+      default: {
+        document: { run: { font: 'Arial', size: 22 } }
+      }
+    },
+    sections: [{
+      properties: {
+        page: {
+          margin: { top: 900, right: 900, bottom: 900, left: 900 }
+        }
+      },
+      children: [
+        ...titleParagraphs,
+
+        sectionHeading('Section 1 — Brief Description of Duties'),
+        bodyPara(getSectionText('s1')),
+
+        sectionHeading('Section 2 — Annual Work Plan & Achievements'),
+        s2Content,
+
+        sectionHeading('Section 3 — Extraordinary Contribution'),
+        bodyPara(getSectionText('s3')),
+
+        sectionHeading('Section 4 — Factors that Hindered Performance'),
+        bodyPara(getSectionText('s4')),
+
+        sectionHeading('Section 5 — Three Areas for Skill Upgradation'),
+        ...(s5Paras.length ? s5Paras : [bodyPara(getSectionText('s5'))]),
+
+        sectionHeading('Section 6 — Declaration'),
+        bodyPara(getSectionText('s6')),
+        new Paragraph({ spacing: { before: 480 } }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Signature: ____________________________', size: 22, font: 'Arial' }),
+            new TextRun({ text: '        Date: ________________', size: 22, font: 'Arial' })
+          ]
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: `Name: ${employeeName}`, size: 22, font: 'Arial' })],
+          spacing: { before: 80 }
+        }),
+
+        sectionHeading('Section 7 — Additional Charge'),
+        bodyPara(getSectionText('s7'))
+      ]
+    }]
+  });
+
+  const blob = await Packer.toBlob(doc);
+  const filename = `PAR_${employeeName.replace(/\s+/g,'_')}_${new Date().getFullYear()}.docx`;
+  saveAs(blob, filename);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PDF via PRINT — clean print stylesheet
+// ═══════════════════════════════════════════════════════════
+function downloadPDF() {
+  window.print();
+}
+
+</script>
+</body>
+</html>
