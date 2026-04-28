@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PAR Smart Assistant</title>
+  <title>PAR Smart Assistant v6.5</title>
   <style>
     :root{--bg:#f0f4f8;--card:#fff;--ink:#1f2937;--muted:#6b7280;--line:#dbe3ee;--accent:#1d4ed8;--accent2:#1e3a8a;--warn:#b45309;--err:#b91c1c;--ok:#16a34a;--shadow:0 8px 28px rgba(15,23,42,.09);--r:16px;}
     *{box-sizing:border-box;}
@@ -191,7 +191,6 @@
         <div class="field"><label>To Date</label><input id="customTo" type="date"/><span class="err-msg" id="err_customdate">To date must be after From date</span></div>
         <div class="field"><label style="font-size:12px;color:var(--muted);">Validation</label><input id="periodDisplay" type="text" readonly style="background:#f9fafb;"/><span class="err-msg" id="err_shortperiod">Period must be more than 3 months</span></div>
       </div>
-      <input id="designationText" type="hidden" value=""/>
       <div class="grid" style="margin-top:14px;">
         <div class="field">
           <label>Profession Group *</label>
@@ -417,17 +416,22 @@ const DENT_SPEC_FIELDS = {'Oral & Maxillofacial Surgery (OMFS)':['dent_omfs'],'C
 // ═══════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════
+// Human-readable labels for profession groups that have no desigSelect dropdown
+const PROF_LABEL = {
+  nursing_hosp:'Staff Nurse',
+  nursing_college:'Staff Nurse (Teaching College)',
+  anm:'Auxiliary Nurse Midwife (ANM)',
+  pharmacy:'Pharmacist',
+  labtech:'Laboratory Technician',
+  radiographer:'Radiographer / X-ray Technician',
+  healthinsp:'Health Inspector / Health Supervisor',
+  admin:'Admin Staff',
+  nhm:'NHM / Contract Staff',
+  ayush:'AYUSH Medical Officer'
+};
 const $ = id => document.getElementById(id);
 const show = el => el.classList.remove('hidden');
 const hide = el => el.classList.add('hidden');
-function getDesignationText(){
-  const cache = $('designationText');
-  const desigEl = $('desigSelect');
-  const txt = (cache?.value || desigEl?.options?.[desigEl.selectedIndex]?.text || desigEl?.value || '').trim();
-  if(cache) cache.value = txt;
-  return txt;
-}
-
 function setOpts(sel,arr){sel.innerHTML='<option value="">Select</option>'+arr.map(v=>`<option value="${v}">${v}</option>`).join('');}
 function populateInstitute(sel,type){setOpts(sel,type==='dental_college'?DENTAL_COLLEGES:MEDICAL_COLLEGES);}
 
@@ -469,7 +473,7 @@ document.getElementById('parForm').addEventListener('change',updateProgress);
 // CASCADE LOGIC
 // ═══════════════════════════════════════════════════════════
 document.getElementById('professionGroup').addEventListener('change',function(){
-  const v=this.value; if($('designationText')) $('designationText').value='';
+  const v=this.value;
   ['desigWrap','specRow','facilityRow','instituteWrap','nursingCollegeRow','nursingInstWrap'].forEach(id=>hide($(id)));
   clearErr('profession'); resetDynamic();
   if(!v) return;
@@ -485,7 +489,6 @@ document.getElementById('professionGroup').addEventListener('change',function(){
 });
 
 document.getElementById('desigSelect').addEventListener('change',function(){
-  getDesignationText();
   const prof=$('professionGroup').value, desig=this.value; if(!desig) return;
   if(prof==='medical_hosp'){
     if(desig.includes('CDMO')){renderFields(['med_hosp_gen','med_admin']);return;}
@@ -570,7 +573,10 @@ function collectPayload(){
   document.querySelectorAll('#dynamicFields input[name]').forEach(i=>{if(i.value!=='')wk[i.name.replace('wk_','')]=i.value;});
   const pSel=$('parPeriodSelect').value;
   const period=pSel==='custom'?`${$('customFrom').value} to ${$('customTo').value}`:(document.querySelector(`#parPeriodSelect option[value="${pSel}"]`)||{}).textContent||'';
-  return{name:$('employeeName').value,designationText:getDesignationText(),professionGroup:$('professionGroup').value,designation:$('desigSelect').value||'',speciality:$('specSelect').value||'',facility:$('facilityInput').value||$('instituteSelect').value||$('nursingInstSelect').value||'',period,workData:wk,training:$('training').value,camps:$('camps').value,awards:$('awards').value,initiatives:$('initiatives').value,hindrances:$('hindrances').value,skills:[$('skill1').value,$('skill2').value,$('skill3').value].filter(Boolean),addlCharge:$('additionalCharge').value==='yes'?$('additionalChargeDetails').value:''};
+  const pg=$('professionGroup').value;
+  const desigHidden=$('desigWrap').classList.contains('hidden');
+  const resolvedDesig=desigHidden?(PROF_LABEL[pg]||pg):($('desigSelect').value||'');
+  return{name:$('employeeName').value,designationText:resolvedDesig,professionGroup:pg,designation:resolvedDesig,speciality:$('specRow').classList.contains('hidden')?'':($('specSelect').value||''),facility:$('facilityInput').value||$('instituteSelect').value||$('nursingInstSelect').value||'',period,workData:wk,training:$('training').value,camps:$('camps').value,awards:$('awards').value,initiatives:$('initiatives').value,hindrances:$('hindrances').value,skills:[$('skill1').value,$('skill2').value,$('skill3').value].filter(Boolean),addlCharge:$('additionalCharge').value==='yes'?$('additionalChargeDetails').value:''};
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -584,7 +590,7 @@ function buildPrompt(p){
 
 EMPLOYEE PROFILE:
 - Name: ${p.name}
-- Designation: ${p.designationText||p.designation||p.professionGroup}
+- Designation: ${p.designationText||p.designation||PROF_LABEL[p.professionGroup]||p.professionGroup}
 - Speciality / Department: ${p.speciality||'N/A'}
 - Facility / Institute: ${p.facility||'N/A'}${isCollegeAdmin?' (Teaching College — include academic administration duties)':''}
 - PAR Review Period: ${p.period}
@@ -692,16 +698,9 @@ function regenPAR(){hide($('parOutputCard'));generatePAR();}
 // SECURE BACKEND CALL — key never exposed to browser
 // ═══════════════════════════════════════════════════════════
 async function generatePAR(){
-  let payload, prompt;
-  try{
-    payload=collectPayload();
-    prompt=buildPrompt(payload);
-  }catch(err){
-    hide($('generatingCard'));
-    $('parOutputWrap').innerHTML=`<div style="padding:20px;background:#fef2f2;border-radius:12px;color:#b91c1c;"><strong>⚠️ Frontend Error:</strong><br><br>${err.message}</div>`;
-    show($('parOutputCard'));
-    return;
-  }
+  const payload=collectPayload();
+  payload._langInstruction=LANG[currentLang].langInstruction;
+  const prompt=buildPrompt(payload);
   hide($('parOutputCard')); show($('generatingCard'));
   $('generatingCard').scrollIntoView({behavior:'smooth'});
   $('genStepLabel').textContent='Generating AI Response, please wait...';
@@ -772,7 +771,8 @@ async function downloadDOCX() {
 
   const employeeName  = document.getElementById('employeeName').value || 'Employee';
   const desigEl       = document.getElementById('desigSelect');
-  const designation   = (document.getElementById('designationText')?.value || desigEl?.options?.[desigEl.selectedIndex]?.text || desigEl?.value || '').trim();
+  const pg2           = document.getElementById('professionGroup').value;
+  const designation   = (document.getElementById('designationText')?.value || desigEl?.options?.[desigEl.selectedIndex]?.text || PROF_LABEL[pg2] || desigEl?.value || '').trim();
   const speciality    = document.getElementById('specSelect').value || '';
   const facilityEl    = document.getElementById('facilityInput') || document.getElementById('instituteSelect') || document.getElementById('nursingInstSelect');
   const facility      = facilityEl ? facilityEl.value : '';
@@ -1082,7 +1082,6 @@ function setLang(lang) {
   const ps  = document.querySelectorAll('.hero p');
   if(h1) h1.textContent = L.heroTitle;
   if(ps[0]) ps[0].textContent = L.heroSub;
-  if(ps[1]) ps[1].textContent = L.heroDev;
 
   // Progress steps
   document.querySelectorAll('.dot-label').forEach((d,i)=>{ if(L.steps[i]) d.textContent = L.steps[i]; });
@@ -1114,9 +1113,9 @@ function setLang(lang) {
   if(genBtn)     genBtn.textContent     = L.btns.generate;
   if(resetBtn)   resetBtn.textContent   = L.btns.reset;
 
-  // Footer
+  // Footer — developer name always stays in English
   const fn = document.querySelector('.footer-note');
-  if(fn) fn.innerHTML = L.footer;
+  if(fn) fn.innerHTML = LANG['en'].footer;
 
   // Spinner label
   const sl = document.getElementById('genStepLabel');
