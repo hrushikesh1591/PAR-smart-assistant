@@ -135,7 +135,7 @@
   </div>
 <div class="hero">
   <h1>PAR Smart Assistant</h1>
-  <p>Gujarat Health &amp; Family Welfare Department — Karmayogi Gujarat PAR Generator · v6.5</p>
+  <p>Karmayogi Gujarat PAR Generator · v6.5</p>
   <div style="margin:14px 0 0;background:rgba(255,255,255,0.12);border-radius:12px;padding:12px 16px;">
     <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#fff;">⚡ How it works — 3 simple steps:</p>
     <div style="display:flex;flex-wrap:wrap;gap:8px;">
@@ -311,13 +311,13 @@
     <div class="card">
       <div class="actions">
         <button type="button" class="btn-primary" onclick="doPreview()">&#128196; Preview &amp; Validate</button>
-        <button type="button" class="btn-generate hidden" id="generateBtn" onclick="generatePAR()">&#9889; ⚡ Generate AI Response</button>
+        <button type="button" class="btn-generate hidden" id="generateBtn" onclick="generatePAR()">⚡ Generate AI Response</button>
         <button type="button" class="btn-secondary" onclick="doReset()">&#8635; Reset Form</button>
       </div>
       <div class="form-err-banner hidden" id="formErrBanner">⚠️ Please fix the highlighted errors above before proceeding.</div>
       <div class="footer-note" style="text-align:center;padding:18px 20px 24px;border-top:1px solid #e5e7eb;margin-top:10px;">
       <p style="margin:0 0 4px;font-size:13px;color:#374151;font-weight:600;">PAR Smart Assistant v6.5</p>
-      <p style="margin:0 0 6px;font-size:12px;color:#6b7280;">Powered by Gemini 2.5 Flash · Gujarat Health Department · Karmayogi Gujarat</p>
+      <p style="margin:0 0 6px;font-size:12px;color:#6b7280;">Gujarat Health Department · Karmayogi Gujarat</p>
       <p style="margin:0;font-size:11px;color:#9ca3af;">Developed by <strong style="color:#6b7280;">Dr. Hrushikesh Gosai MDS OMFS</strong></p>
     </div>
     </div>
@@ -327,8 +327,8 @@
   <div class="card hidden" id="generatingCard">
     <div class="generating-wrap">
       <div class="spinner"></div>
-      <div style="font-size:14px;color:var(--muted);">Generating your PAR with Gemini...</div>
-      <div class="gen-step-label" id="genStepLabel">Sending to Gemini 2.5 Flash...</div>
+      <div style="font-size:14px;color:var(--muted);">Generating your AI Response...</div>
+      <div class="gen-step-label" id="genStepLabel">Generating AI Response...</div>
       <div style="font-size:12px;color:var(--muted);margin-top:8px;">Usually takes 15–30 seconds.</div>
     </div>
   </div>
@@ -619,7 +619,9 @@ I hereby declare that the information provided in this Performance Appraisal Rep
 SECTION 7 — ADDITIONAL CHARGE
 ${p.addlCharge?'80–100 words describing the additional charge duties professionally.':'Not Applicable'}
 
-Begin each section with the exact heading as shown above.`;
+Begin each section with the exact heading as shown above.
+
+LANGUAGE INSTRUCTION: ${p._langInstruction||"Write all output in formal English."}`;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -905,7 +907,7 @@ async function downloadDOCX() {
           spacing: { after: 80 }
         }),
         new Paragraph({
-          children: [new TextRun({ text: 'Gujarat Health & Family Welfare Department  |  Karmayogi Gujarat', size: 22, font: 'Arial', color: GRAY, italics: true })],
+          children: [new TextRun({ text: 'Karmayogi Gujarat  |  Karmayogi Gujarat', size: 22, font: 'Arial', color: GRAY, italics: true })],
           alignment: AlignmentType.CENTER,
           spacing: { after: 240 }
         }),
@@ -1013,7 +1015,7 @@ function downloadPDF() {
 const LANG = {
   en: {
     heroTitle:'PAR Smart Assistant',
-    heroSub:'Gujarat Health & Family Welfare Department — Karmayogi Gujarat PAR Generator · v6.5',
+    heroSub:'Karmayogi Gujarat PAR Generator · v6.5',
     heroDev:'Developed by Dr. Hrushikesh Gosai MDS OMFS',
     steps:['Profile','Work Data','Achievements','Hindrances','Skills','Extra Charge'],
     cardTitles:['Employee Profile','Yearly Work Numbers','Additional Achievements','Factors that Hindered Performance','Three Areas for Skill Upgradation','Additional Charge (if any)'],
@@ -1025,7 +1027,7 @@ const LANG = {
     genMsg:'Generating AI Response, please wait...',
     outTitle:'Your Generated PAR Draft',
     outInfo:'✅ All 7 sections generated. Click any section text to edit inline. Then copy-paste into Karmayogi Gujarat portal.',
-    footer:'PAR Smart Assistant v6.5 · Gemini 2.5 Flash · Developed by <strong>Dr. Hrushikesh Gosai MDS OMFS</strong>',
+    footer:'PAR Smart Assistant v6.5 · Developed by <strong>Dr. Hrushikesh Gosai MDS OMFS</strong>',
     langInstruction:'Write all output in formal English.'
   },
   gu: {
@@ -1042,7 +1044,7 @@ const LANG = {
     genMsg:'AI Response તૈયાર કરી રહ્યા છીએ...',
     outTitle:'તૈયાર PAR ડ્રાફ્ટ',
     outInfo:'✅ 7 વિભાગ તૈયાર. ટેક્સ્ટ ક્લિક કરી સંપાદિત કરી શકાય. Karmayogi Gujarat પોર્ટલ પર કૉપી-પેસ્ટ કરો.',
-    footer:'PAR Smart Assistant v6.5 · Gemini 2.5 Flash · <strong>ડૉ. હ્રુષિકેશ ગોસાઈ MDS OMFS</strong>',
+    footer:'PAR Smart Assistant v6.5 · <strong>ડૉ. હ્રુષિકેશ ગોસાઈ MDS OMFS</strong>',
     langInstruction:'Write ALL 7 PAR sections in formal Gujarati language only (ગુજરાતી). Use formal Gujarat government self-appraisal style. Keep all numbers, medical terms, and technical abbreviations in English.'
   }
 };
