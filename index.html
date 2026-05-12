@@ -255,7 +255,28 @@
       #parOutputCard{display:block!important;box-shadow:none!important;border:none!important}
       .par-sheet{border:none!important}
       .par-main-table th,.par-inner-table th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    }
+    }/* Copy protection for free preview */
+.locked-preview{position:relative;pointer-events:none;}
+.locked-preview td.editable-block,
+.locked-preview td.editable-small{
+  filter:blur(4px);
+  user-select:none;
+  -webkit-user-select:none;
+}
+.paywall-overlay{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  background:rgba(255,255,255,0.7);
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:12px;z-index:10;
+  border-radius:10px;
+}
+.paywall-overlay p{
+  font-size:15px;font-weight:600;color:#003366;
+  text-align:center;padding:0 20px;
+}
+.paywall-overlay .btn-pay{
+  pointer-events:all;
+}
   </style>
 </head>
 <body>
@@ -2101,109 +2122,144 @@ ${p.langInstruction}`.trim();
     }
 
     async function generatePAR(){
-      if(!validateForm()){
-        $('formErrBanner').classList.add('show');
-        return;
-      }
+  if(!validateForm()){
+    $('formErrBanner').classList.add('show');
+    return;
+  }
+  // ── CREDIT CHECK ──
+  const free = parseInt(localStorage.getItem('par_free_exports') || '1', 10);
+  const paid = parseInt(localStorage.getItem('par_paid_credits') || '0', 10);
+  if(free + paid <= 0){
+    alert('No credits left. Please purchase a pack to generate more reports.');
+    document.getElementById('pricingSection')?.scrollIntoView({behavior:'smooth'});
+    return;
+  }
 
-      show($('generatingCard'));
-      hide($('parOutputCard'));
-      const payload = collectPayload();
+  show($('generatingCard'));
+  hide($('parOutputCard'));
+  const payload = collectPayload();
 
-      try{
-        const res = await fetch('/api/gemini', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ prompt: buildPrompt(payload) })
-        });
+  try{
+    const res = await fetch('/api/gemini', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt: buildPrompt(payload) })
+    });
 
-        const raw = await res.text();
-        let parsedOuter;
-        try{ parsedOuter = JSON.parse(raw); }
-        catch{ parsedOuter = raw; }
+    const raw = await res.text();
+    let parsedOuter;
+    try{ parsedOuter = JSON.parse(raw); }
+    catch{ parsedOuter = raw; }
 
-        const content = safeResponseText(parsedOuter);
-        const data = extractJSON(content);
-        lastPARData = data;
-        renderOutput(data);
-        show($('parOutputCard'));
-        $('parOutputCard').scrollIntoView({behavior:'smooth'});
-      }catch(err){
-        alert('AI generation failed. ' + err.message);
-      }finally{
-        hide($('generatingCard'));
-      }
+    const content = safeResponseText(parsedOuter);
+    const data = extractJSON(content);
+    lastPARData = data;
+
+    // Pass isFree=true if using free credit
+    const usingFree = free > 0;
+    renderOutput(data, usingFree);
+
+    // Consume the free credit now (after generation, not download)
+    if(usingFree){
+      localStorage.setItem('par_free_exports', String(free - 1));
+      updateCreditUI();
     }
 
-    function renderOutput(data){
-      const rows = (data.section2 || []).map(r => `
-        <tr>
-          <td contenteditable="true" class="editable-small">${escapeHtml(r.task || '')}</td>
-          <td contenteditable="true" class="editable-small">${escapeHtml(r.deliverables || '')}</td>
-          <td contenteditable="true" class="editable-small">${escapeHtml(r.actual || '')}</td>
-        </tr>
-      `).join('');
+    show($('parOutputCard'));
+    $('parOutputCard').scrollIntoView({behavior:'smooth'});
+  }catch(err){
+    alert('AI generation failed. ' + err.message);
+  }finally{
+    hide($('generatingCard'));
+  }
+    }
 
-      $('parOutputWrap').innerHTML = `
-        <div class="edit-note">${currentLang==='gu'
+ function renderOutput(data, isFree = false){
+  const rows = (data.section2 || []).map(r => `
+    <tr>
+      <td contenteditable="${isFree ? 'false' : 'true'}" class="editable-small">${escapeHtml(r.task || '')}</td>
+      <td contenteditable="${isFree ? 'false' : 'true'}" class="editable-small">${escapeHtml(r.deliverables || '')}</td>
+      <td contenteditable="${isFree ? 'false' : 'true'}" class="editable-small">${escapeHtml(r.actual || '')}</td>
+    </tr>
+  `).join('');
+
+  const lockClass = isFree ? 'locked-preview' : '';
+  const overlay = isFree ? `
+    <div class="paywall-overlay">
+      <p>🔒 This is a free preview. Purchase a pack to copy, edit, and download your full PAR.</p>
+      <button class="btn-pay" type="button" onclick="document.getElementById('pricingSection').scrollIntoView({behavior:'smooth'})">
+        View Plans ↓
+      </button>
+    </div>` : '';
+
+  $('parOutputWrap').innerHTML = `
+    <div class="edit-note">${isFree
+      ? '🔒 <strong>Free preview</strong> — Sections 3–7 are locked. Purchase a credit to unlock full copy and download.'
+      : (currentLang==='gu'
           ? 'કોઈ પણ સેલ અથવા ટેક્સ્ટ ક્લિક કરીને સીધું એડિટ કરી શકો છો.'
-          : 'You can click and edit any cell or paragraph directly before copying or downloading.'}</div>
+          : 'You can click and edit any cell or paragraph directly before copying or downloading.')
+    }</div>
 
-        <div class="par-sheet">
-          <table class="par-main-table">
-            <tr>
-              <th style="width:22%;">1. ${txt('section1')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section1))}</td>
-            </tr>
+    <div class="par-sheet ${lockClass}" style="position:relative;">
+      ${overlay}
+      <table class="par-main-table">
+        <tr>
+          <th style="width:22%;">1. ${txt('section1')}</th>
+          <td contenteditable="${isFree ? 'false' : 'true'}" class="editable-block">${nl2br(safeStr(data.section1))}</td>
+        </tr>
+        <tr>
+          <th>2. ${txt('section2')}</th>
+          <td>
+            <table class="par-inner-table">
+              <thead>
+                <tr>
+                  <th>${txt('colTask')}</th>
+                  <th>${txt('colDeliverables')}</th>
+                  <th>${txt('colActual')}</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <th>3. ${txt('section3')}</th>
+          <td contenteditable="${isFree ? 'false' : 'true'}" class="editable-block">${nl2br(safeStr(data.section3))}</td>
+        </tr>
+        <tr>
+          <th>4. ${txt('section4')}</th>
+          <td contenteditable="${isFree ? 'false' : 'true'}" class="editable-block">${nl2br(safeStr(data.section4))}</td>
+        </tr>
+        <tr>
+          <th>5. ${txt('section5')}</th>
+          <td contenteditable="${isFree ? 'false' : 'true'}" class="editable-block">${
+            Array.isArray(data.section5)
+              ? data.section5.map((s,i)=>`${i+1}. ${escapeHtml(safeStr(s))}`).join('<br>')
+              : nl2br(safeStr(data.section5))
+          }</td>
+        </tr>
+        <tr>
+          <th>6. ${txt('section6')}</th>
+          <td contenteditable="${isFree ? 'false' : 'true'}" class="editable-block">${nl2br(safeStr(data.section6))}</td>
+        </tr>
+        <tr>
+          <th>7. ${txt('section7')}</th>
+          <td contenteditable="${isFree ? 'false' : 'true'}" class="editable-block">${nl2br(safeStr(data.section7))}</td>
+        </tr>
+      </table>
+    </div>
+  `;
 
-            <tr>
-              <th>2. ${txt('section2')}</th>
-              <td>
-                <table class="par-inner-table">
-                  <thead>
-                    <tr>
-                      <th>${txt('colTask')}</th>
-                      <th>${txt('colDeliverables')}</th>
-                      <th>${txt('colActual')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>${rows}</tbody>
-                </table>
-              </td>
-            </tr>
-
-            <tr>
-              <th>3. ${txt('section3')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section3))}</td>
-            </tr>
-
-            <tr>
-              <th>4. ${txt('section4')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section4))}</td>
-            </tr>
-
-           <tr>
-              <th>5. ${txt('section5')}</th>
-              <td contenteditable="true" class="editable-block">${
-                Array.isArray(data.section5)
-                  ? data.section5.map((s,i)=>`${i+1}. ${escapeHtml(safeStr(s))}`).join('<br>')
-                  : nl2br(safeStr(data.section5))
-              }</td>
-            </tr>
-
-            <tr>
-              <th>6. ${txt('section6')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section6))}</td>
-            </tr>
-
-            <tr>
-              <th>7. ${txt('section7')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section7))}</td>
-            </tr>
-          </table>
-        </div>
-      `;
-    }
+  // Lock/unlock action buttons
+  $('copyAllBtn').disabled = isFree;
+  $('docxBtn').disabled = isFree;
+  $('pdfBtn').disabled = isFree;
+  if(isFree){
+    $('copyAllBtn').title = 'Purchase a credit to unlock';
+    $('docxBtn').title = 'Purchase a credit to unlock';
+    $('pdfBtn').title = 'Purchase a credit to unlock';
+  }
+ }
 
     async function copyAll(){
       try{
