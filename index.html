@@ -1510,7 +1510,16 @@
     function nl2br(s){
       return escapeHtml(s).replace(/\n/g,'<br>');
     }
-
+    function safeStr(val) {
+      if (!val) return '';
+      if (typeof val === 'string') return val;
+      // If object, try common keys Gemini might use
+      if (typeof val === 'object') {
+        return val.text || val.content || val.value || val.en
+               || Object.values(val).join(' ') || '';
+      }
+      return String(val);
+    }
    function setOptions(selectEl, arr, firstText, keep=''){
   selectEl.innerHTML = '';
 
@@ -2037,7 +2046,7 @@ IMPORTANT WRITING RULES
 
 Return ONLY raw valid JSON. Do NOT wrap in markdown code fences or add any text before or after the JSON.
 {
-  "section1": "...",
+  "section1": "Write a 2–3 sentence plain text description of duties here as a single string.",
   "section2": [
     {"task":"...","deliverables":"...","actual":"..."}
   ],
@@ -2143,7 +2152,7 @@ ${p.langInstruction}`.trim();
           <table class="par-main-table">
             <tr>
               <th style="width:22%;">1. ${txt('section1')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(data.section1 || '')}</td>
+              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section1))}</td>
             </tr>
 
             <tr>
@@ -2164,31 +2173,31 @@ ${p.langInstruction}`.trim();
 
             <tr>
               <th>3. ${txt('section3')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(data.section3 || '')}</td>
+              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section3))}</td>
             </tr>
 
             <tr>
               <th>4. ${txt('section4')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(data.section4 || '')}</td>
+              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section4))}</td>
             </tr>
 
-            <tr>
+           <tr>
               <th>5. ${txt('section5')}</th>
               <td contenteditable="true" class="editable-block">${
                 Array.isArray(data.section5)
-                  ? data.section5.map((s,i)=>`${i+1}. ${escapeHtml(s)}`).join('<br>')
-                  : nl2br(data.section5 || '')
+                  ? data.section5.map((s,i)=>`${i+1}. ${escapeHtml(safeStr(s))}`).join('<br>')
+                  : nl2br(safeStr(data.section5))
               }</td>
             </tr>
 
             <tr>
               <th>6. ${txt('section6')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(data.section6 || '')}</td>
+              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section6))}</td>
             </tr>
 
             <tr>
               <th>7. ${txt('section7')}</th>
-              <td contenteditable="true" class="editable-block">${nl2br(data.section7 || '')}</td>
+              <td contenteditable="true" class="editable-block">${nl2br(safeStr(data.section7))}</td>
             </tr>
           </table>
         </div>
