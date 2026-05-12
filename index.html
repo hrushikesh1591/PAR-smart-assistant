@@ -2035,7 +2035,7 @@ IMPORTANT WRITING RULES
 - For Section 5, provide exactly 3 skill areas.
 - For Section 7, if no additional charge exists, write “Not Applicable”.
 
-Return valid JSON with this exact structure:
+Return ONLY raw valid JSON. Do NOT wrap in markdown code fences or add any text before or after the JSON.
 {
   "section1": "...",
   "section2": [
@@ -2051,16 +2051,36 @@ Return valid JSON with this exact structure:
 ${p.langInstruction}`.trim();
     }
 
-    function extractJSON(raw){
-      try{
-        return JSON.parse(raw);
-      }catch(e){
-        const s = raw.indexOf('{');
-        const e2 = raw.lastIndexOf('}');
-        if(s !== -1 && e2 !== -1 && e2 > s) return JSON.parse(raw.slice(s, e2+1));
-        throw e;
+    function extractJSON(raw) {
+  // 1. Strip markdown code fences (```json ... ``` or ``` ... ```)
+  let cleaned = raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim();
+
+  // 2. Try direct parse first
+  try {
+    return JSON.parse(cleaned);
+  } catch (e1) {
+    // 3. Find outermost { } block
+    const s = cleaned.indexOf('{');
+    const e2 = cleaned.lastIndexOf('}');
+    if (s !== -1 && e2 !== -1 && e2 > s) {
+      try {
+        return JSON.parse(cleaned.slice(s, e2 + 1));
+      } catch (e2err) {
+        // 4. Last resort: aggressive fence removal (multiline fences)
+        const fenceStripped = raw
+          .replace(/```[\w]*\n?/g, '')
+          .trim();
+        const s2 = fenceStripped.indexOf('{');
+        const e3 = fenceStripped.lastIndexOf('}');
+        if (s2 !== -1 && e3 > s2) return JSON.parse(fenceStripped.slice(s2, e3 + 1));
       }
     }
+    throw e1;
+  }
+}
 
     function safeResponseText(obj){
       if(typeof obj === 'string') return obj;
