@@ -277,6 +277,19 @@
 .paywall-overlay .btn-pay{
   pointer-events:all;
 }
+    #generateBtn:disabled{
+  opacity:0.4;
+  cursor:not-allowed;
+  background:#aaa;
+}
+#noCreditsMsg{
+  display:none;
+  color:#b91c1c;
+  font-size:13px;
+  font-weight:600;
+  margin-top:6px;
+}
+#noCreditsMsg.show{ display:block; }
   </style>
 </head>
 <body>
@@ -327,7 +340,7 @@
       </div>
     </section>
 
-    <section class="card">
+   <section class="card" id="pricingSection" ...>
       <div class="card-header">
         <div class="badge" id="pricingBadge">Pricing</div>
         <h2 id="pricingTitle">Report credit packs</h2>
@@ -567,7 +580,8 @@
       <div class="card">
         <div class="actions">
           <button type="button" class="btn-primary" onclick="doPreview()" id="previewBtn">Preview & Validate</button>
-          <button type="button" class="btn-generate hidden" id="generateBtn" onclick="generatePAR()">Generate AI Response</button>
+          <button type="button" class="btn-generate hidden" id="generateBtn" onclick="generatePAR()">Generate AI Response</button> 
+            <div id="noCreditsMsg">⚠️ No credits left. <a href="#pricingSection" onclick="document.getElementById('pricingSection').scrollIntoView({behavior:'smooth'});return false;">Buy a pack to generate reports.</a></div>
           <button type="button" class="btn-secondary" onclick="doReset()" id="resetBtn">Reset Form</button>
         </div>
         <div class="form-err-banner" id="formErrBanner">Please fix the highlighted errors above before proceeding.</div>
@@ -1914,20 +1928,33 @@
 
       return valid;
     }
-
     function doPreview(){
-      $('formErrBanner').classList.remove('show');
-      document.querySelectorAll('.error').forEach(el=>el.classList.remove('error'));
-      document.querySelectorAll('.err-msg.show').forEach(el=>el.classList.remove('show'));
-      if(!validateForm()){
-        $('formErrBanner').classList.add('show');
-        return;
+        $('formErrBanner').classList.remove('show');
+        document.querySelectorAll('.error').forEach(el=>el.classList.remove('error'));
+        document.querySelectorAll('.err-msg.show').forEach(el=>el.classList.remove('show'));
+      
+        if(!validateForm()){
+          $('formErrBanner').classList.add('show');
+          return;
+        }
+      
+        // Credit check
+        const free = parseInt(localStorage.getItem('par_free_exports') || '1', 10);
+        const paid = parseInt(localStorage.getItem('par_paid_credits') || '0', 10);
+        const hasCredits = (free + paid) > 0;
+      
+        show($('generateBtn'));
+        $('generateBtn').disabled = !hasCredits;
+      
+        if(!hasCredits){
+          $('noCreditsMsg').classList.add('show');
+        } else {
+          $('noCreditsMsg').classList.remove('show');
+        }
+      
+        $('generateBtn').scrollIntoView({behavior:'smooth', block:'center'});
+        updateProgress();
       }
-      show($('generateBtn'));
-      $('generateBtn').scrollIntoView({behavior:'smooth',block:'center'});
-      updateProgress();
-    }
-
     function doReset(){
       document.getElementById('parForm').reset();
       hide($('customRangeWrap'));
